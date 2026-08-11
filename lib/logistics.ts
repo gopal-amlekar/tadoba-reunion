@@ -114,6 +114,83 @@ export function runNeedsVehicle(run: Run): boolean {
 }
 
 /**
+ * The run into Tadoba doesn't happen when each person lands — everybody
+ * converges and drives in together on the main day, one convoy per gateway.
+ * People who landed the day before have simply been waiting at a hotel.
+ *
+ * So the convoy cannot leave until the last same-day arrival is on the ground,
+ * which is the number Mayuri actually books the vehicle around.
+ */
+export type Convoy = {
+  gateway: string;
+  people: Participant[];
+  heads: number;
+  /** Landed the previous day and slept locally — already waiting. */
+  overnightCount: number;
+  /** Landing on the main day itself, so the convoy has to wait for them. */
+  sameDayCount: number;
+  /** Latest same-day arrival time; the convoy can't roll before this. */
+  notBefore: string;
+  notBeforeWho: string;
+  selfDriven: boolean;
+};
+
+export function inboundConvoys(people: Participant[]): Convoy[] {
+  const joining = people.filter(
+    (p) => p.status !== "Cancelled" && p.arriveDate && p.arriveDate <= MAIN_DAY,
+  );
+
+  const groups = new Map<string, Convoy>();
+  for (const p of joining) {
+    const gateway = p.arriveGateway || "Gateway not given";
+    const c = groups.get(gateway) ?? {
+      gateway,
+      people: [],
+      heads: 0,
+      overnightCount: 0,
+      sameDayCount: 0,
+      notBefore: "",
+      notBeforeWho: "",
+      selfDriven: isSelfDriven(gateway),
+    };
+
+    c.people.push(p);
+    c.heads += 1;
+
+    if (p.arriveDate < MAIN_DAY) {
+      c.overnightCount += 1;
+    } else {
+      c.sameDayCount += 1;
+      if (p.arriveTime && p.arriveTime > c.notBefore) {
+        c.notBefore = p.arriveTime;
+        c.notBeforeWho = p.name;
+      }
+    }
+    groups.set(gateway, c);
+  }
+
+  return [...groups.values()]
+    .map((c) => ({
+      ...c,
+      people: c.people.sort((a, b) =>
+        `${a.arriveDate}${a.arriveTime}`.localeCompare(
+          `${b.arriveDate}${b.arriveTime}`,
+        ),
+      ),
+    }))
+    .sort((a, b) => Number(a.selfDriven) - Number(b.selfDriven) ||
+      a.gateway.localeCompare(b.gateway));
+}
+
+/** Anyone landing after the convoy has gone, or with no date yet — own transfer. */
+export function lateArrivals(people: Participant[]): Run[] {
+  return buildRuns(
+    people.filter((p) => !p.arriveDate || p.arriveDate > MAIN_DAY),
+    "arrive",
+  );
+}
+
+/**
  * Anyone landing before the main day sleeps somewhere in between — normally a
  * hotel at their arrival city, occasionally the resort itself. This is the list
  * Mayuri books those rooms from.

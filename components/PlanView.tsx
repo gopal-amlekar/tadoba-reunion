@@ -4,6 +4,8 @@ import {
   byStay,
   earlyArrivals,
   earlyNightHeads,
+  inboundConvoys,
+  lateArrivals,
   legTitle,
   runNeedsVehicle,
   runWhen,
@@ -60,7 +62,9 @@ function RunCard({
 
 export default function PlanView({ people }: { people: Participant[] }) {
   const t = totals(people);
-  const arrivals = buildRuns(people, "arrive");
+  const convoys = inboundConvoys(people);
+  const late = lateArrivals(people);
+  // Departures stay per-person: everyone leaves on their own train or flight.
   const departures = buildRuns(people, "return");
   const stays = byStay(people);
   const early = earlyArrivals(people);
@@ -105,22 +109,96 @@ export default function PlanView({ people }: { people: Participant[] }) {
           🛬 Getting everyone to Tadoba
         </h2>
         <p className="mt-1 text-sm text-bone-dim">
-          The inbound road legs, grouped by day, arrival place and time window.
-          One card = one vehicle. Anyone arriving before the main day does this
-          leg the next morning — see the night-halt board below.
+          Everyone drives in together on{" "}
+          <strong className="text-bone">{prettyDate(MAIN_DAY)}</strong> — one
+          convoy per gateway, whether you landed that morning or the day before.
+          A convoy can&apos;t leave before its last arrival is on the ground.
         </p>
-        {arrivals.length === 0 ? (
+
+        {convoys.length === 0 ? (
           <p className="card mt-4 p-5 text-bone-dim">No arrivals entered yet.</p>
         ) : (
           <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {arrivals.map((run) => (
-              <RunCard
-                key={`${run.date}-${run.gateway}-${run.slot}`}
-                run={run}
-                direction="arrive"
-              />
+            {convoys.map((c) => (
+              <div key={c.gateway} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-display font-bold text-bone">
+                    {c.selfDriven
+                      ? "Driving straight in"
+                      : c.gateway === "Gateway not given"
+                        ? "Gateway not decided"
+                        : `${c.gateway} → Tadoba`}
+                  </h3>
+                  <span className="chip !border-tiger/40 !text-tiger whitespace-nowrap">
+                    {c.heads} {c.heads === 1 ? "person" : "people"}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-bone-dim">
+                  {prettyDate(MAIN_DAY)} · everyone together
+                </p>
+
+                <p className="mt-1 text-xs text-amber-glow">
+                  {c.selfDriven
+                    ? "Own vehicle — nothing to book"
+                    : `Book: ${suggestVehicles(c.heads)}`}
+                </p>
+
+                {!c.selfDriven && (
+                  <p className="mt-1 text-xs text-leaf">
+                    {c.sameDayCount === 0 ? (
+                      <>Everyone&apos;s already in town — leave whenever suits.</>
+                    ) : c.notBefore ? (
+                      <>
+                        Not before {prettyTime(c.notBefore)} — waiting on{" "}
+                        {c.notBeforeWho}
+                      </>
+                    ) : (
+                      <>
+                        {c.sameDayCount} arriving that day with no time given yet
+                      </>
+                    )}
+                  </p>
+                )}
+
+                <ul className="mt-3 space-y-1 text-sm text-bone-dim">
+                  {c.people.map((p) => (
+                    <li key={p.id} className="flex justify-between gap-2">
+                      <span>{p.name}</span>
+                      <span className="shrink-0 text-xs">
+                        {p.arriveDate < MAIN_DAY ? (
+                          <span className="text-bone-dim/70">
+                            waiting since {prettyDate(p.arriveDate)}
+                          </span>
+                        ) : (
+                          <>
+                            {prettyTime(p.arriveTime)}
+                            {p.arriveMode && ` · ${p.arriveMode}`}
+                          </>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
+        )}
+
+        {late.length > 0 && (
+          <>
+            <h3 className="mt-8 font-display text-lg font-bold text-tiger">
+              Arriving after the convoy — separate transfer needed
+            </h3>
+            <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {late.map((run) => (
+                <RunCard
+                  key={`${run.date}-${run.gateway}-${run.slot}`}
+                  run={run}
+                  direction="arrive"
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
 
