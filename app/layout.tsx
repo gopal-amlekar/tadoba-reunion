@@ -46,19 +46,27 @@ export default async function RootLayout({
             </Link>
             <span className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
               {role && (
-                <Link
-                  href="/travel"
-                  className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-leaf sm:px-3"
-                >
-                  Travel list
-                </Link>
+                <>
+                  <Link
+                    href="/travel"
+                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-leaf sm:px-3"
+                  >
+                    Travel list
+                  </Link>
+                  <Link
+                    href="/plan"
+                    className="rounded-lg px-2 py-1.5 text-leaf transition hover:bg-jungle-800 sm:px-3"
+                  >
+                    The plan
+                  </Link>
+                </>
               )}
               {role === "admin" && (
                 <Link
                   href="/admin"
                   className="rounded-lg px-2 py-1.5 text-amber-glow transition hover:bg-jungle-800 sm:px-3"
                 >
-                  Logistics
+                  Organise
                 </Link>
               )}
               {!role && (
