@@ -4,7 +4,7 @@ import { lockAction } from "@/app/actions";
 import AdminRow from "@/components/AdminRow";
 import { getRole } from "@/lib/auth";
 import { listAudit, listParticipants, usingPostgres } from "@/lib/db";
-import { EVENT, MAIN_DAY, prettyDate, prettyTime } from "@/lib/event";
+import { EVENT, MAIN_DAY, prettyDate, prettyStamp, prettyTime } from "@/lib/event";
 import {
   buildRuns,
   byStay,
@@ -358,10 +358,7 @@ export default async function AdminPage() {
                   {a.summary && ` — ${a.summary.toLowerCase()}`}
                 </span>
                 <span className="text-xs text-bone-dim">
-                  {new Date(a.at).toLocaleString("en-IN", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {prettyStamp(a.at)}
                 </span>
               </li>
             ))}

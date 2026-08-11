@@ -90,14 +90,35 @@ export function slotFor(time: string | null | undefined): string {
   return SLOTS.find((s) => hour >= s.from && hour < s.to)?.label ?? "Time not given";
 }
 
+/** Everything the group does happens on Indian time, wherever the server runs. */
+export const TZ = "Asia/Kolkata";
+
+/**
+ * A calendar date carries no time zone, so it must be built AND formatted in
+ * the same one. Anchoring to UTC on both sides keeps "2026-11-21" reading as
+ * 21 Nov on a Vercel server running UTC as well as on a laptop in IST —
+ * formatting in server-local time silently shifted every date back a day.
+ */
 export function prettyDate(date: string | null | undefined): string {
   if (!date) return "Date not given";
-  const d = new Date(`${date}T00:00:00+05:30`);
+  const d = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return date;
   return d.toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",
     month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** A real instant (created/updated stamps), shown in IST for the organisers. */
+export function prettyStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: TZ,
   });
 }
 

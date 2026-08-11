@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AnimalAvatar from "@/components/AnimalAvatar";
 import { adminUpdateAction } from "@/app/actions";
-import { MAIN_DAY, prettyDate, prettyTime, STATUSES } from "@/lib/event";
+import { MAIN_DAY, prettyDate, prettyStamp, prettyTime, STATUSES } from "@/lib/event";
 import { headcount, type Participant } from "@/lib/types";
 
 /**
@@ -179,11 +179,7 @@ export default function AdminRow({
             Save
           </button>
           <span className="ml-3 text-xs text-bone-dim">
-            Updated{" "}
-            {new Date(p.updatedAt).toLocaleString("en-IN", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
+            Updated {prettyStamp(p.updatedAt)}
             {p.updatedBy && ` by ${p.updatedBy}`}
           </span>
         </div>

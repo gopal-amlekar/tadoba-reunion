@@ -3,6 +3,7 @@ import AnimalAvatar from "@/components/AnimalAvatar";
 import TravelForm from "@/components/TravelForm";
 import { getRole, getWho } from "@/lib/auth";
 import { getParticipant } from "@/lib/db";
+import { prettyStamp } from "@/lib/event";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +29,7 @@ export default async function EditTravelPage({
         </h1>
       </div>
       <p className="mt-2 text-bone-dim">
-        Last updated{" "}
-        {new Date(participant.updatedAt).toLocaleString("en-IN", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
+        Last updated {prettyStamp(participant.updatedAt)}
         {participant.updatedBy && ` by ${participant.updatedBy}`}.
       </p>
       <div className="mt-8">
