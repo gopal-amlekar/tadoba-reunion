@@ -1,4 +1,4 @@
-import { SLOTS, prettyDate, slotFor } from "./event";
+import { EVENT, MAIN_DAY, SLOTS, prettyDate, slotFor } from "./event";
 import { headcount, type Participant } from "./types";
 
 /**
@@ -82,9 +82,90 @@ export function suggestVehicles(heads: number): string {
   return `${tt} Tempo Traveller${tt > 1 ? "s" : ""}${extra}`;
 }
 
-export function runTitle(run: Run): string {
-  return `${prettyDate(run.date)} · ${run.gateway} · ${run.slot}`;
+/** People who drive themselves need no vehicle booked for them. */
+function isSelfDriven(gateway: string): boolean {
+  return gateway.toLowerCase().includes("straight to the resort");
 }
+
+/**
+ * The actual road leg to arrange, written the way you'd say it on the phone:
+ * "Nagpur → Tadoba", not "Nagpur, arrivals".
+ */
+export function legTitle(run: Run, direction: "arrive" | "return"): string {
+  if (isSelfDriven(run.gateway)) {
+    return direction === "arrive"
+      ? "Driving straight in — no pickup"
+      : "Driving out — no drop";
+  }
+  if (run.gateway === "Gateway not given") {
+    return direction === "arrive" ? "Route not known yet" : "Route not known yet";
+  }
+  return direction === "arrive"
+    ? `${run.gateway} → Tadoba`
+    : `Tadoba → ${run.gateway}`;
+}
+
+export function runWhen(run: Run): string {
+  return `${prettyDate(run.date)} · ${run.slot}`;
+}
+
+export function runNeedsVehicle(run: Run): boolean {
+  return !isSelfDriven(run.gateway);
+}
+
+/**
+ * Anyone landing before the main day sleeps somewhere in between — normally a
+ * hotel at their arrival city, occasionally the resort itself. This is the list
+ * Mayuri books those rooms from.
+ */
+export type EarlyGroup = {
+  gateway: string;
+  date: string;
+  people: Participant[];
+  heads: number;
+  unplaced: number;
+};
+
+export function earlyArrivals(people: Participant[]): EarlyGroup[] {
+  const early = people.filter(
+    (p) =>
+      p.status !== "Cancelled" &&
+      p.arriveDate &&
+      // ISO dates compare correctly as plain strings.
+      p.arriveDate < MAIN_DAY,
+  );
+
+  const groups = new Map<string, EarlyGroup>();
+  for (const p of early) {
+    const gateway = p.arriveGateway || "Arrival place not given";
+    const key = `${p.arriveDate}|${gateway}`;
+    const g = groups.get(key) ?? {
+      gateway,
+      date: p.arriveDate,
+      people: [],
+      heads: 0,
+      unplaced: 0,
+    };
+    g.people.push(p);
+    g.heads += headcount(p);
+    if (!p.preNightStay) g.unplaced += 1;
+    groups.set(key, g);
+  }
+
+  return [...groups.values()]
+    .map((g) => ({
+      ...g,
+      people: g.people.sort((a, b) => a.arriveTime.localeCompare(b.arriveTime)),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.gateway.localeCompare(b.gateway));
+}
+
+/** Total beds needed for the pre-event night, for a quick sanity check. */
+export function earlyNightHeads(people: Participant[]): number {
+  return earlyArrivals(people).reduce((n, g) => n + g.heads, 0);
+}
+
+export const VENUE_SHORT = EVENT.venue.split("-")[0].trim();
 
 export type Totals = {
   entries: number;

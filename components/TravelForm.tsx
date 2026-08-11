@@ -105,6 +105,83 @@ function Plain({
   );
 }
 
+/**
+ * Deleting is destructive and there's no undo, so it takes two deliberate
+ * steps: reveal the panel, then type the person's name. Everyone shares one
+ * password, which makes an accidental tap on a phone genuinely likely.
+ */
+function DeleteEntry({ id, name }: { id: string; name: string }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim().toLowerCase() === name.trim().toLowerCase();
+
+  if (!open) {
+    return (
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-sm text-bone-dim underline transition hover:text-tiger"
+        >
+          Remove {name || "this person"} from the list
+        </button>
+        <p className="mt-1 text-xs text-bone-dim">
+          Backing out but might still come? Set “How sure are you?” to Cancelled
+          instead — that keeps the record.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={deleteParticipantAction}
+      className="rounded-2xl border border-tiger/50 bg-tiger/5 p-5"
+    >
+      <input type="hidden" name="id" value={id} />
+      <h3 className="font-display text-lg font-bold text-tiger-light">
+        Delete {name}&apos;s entry?
+      </h3>
+      <p className="mt-1 text-sm text-bone-dim">
+        This removes their travel details, room and vehicle assignment for good.
+        There is no undo — only a line in the change log.
+      </p>
+
+      <label className="label mt-4" htmlFor={`confirm-${id}`}>
+        Type <span className="text-bone">{name}</span> to confirm
+      </label>
+      <input
+        id={`confirm-${id}`}
+        value={typed}
+        onChange={(e) => setTyped(e.target.value)}
+        autoComplete="off"
+        placeholder={name}
+        className="field"
+      />
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="submit"
+          disabled={!matches}
+          className="btn-primary !bg-tiger disabled:cursor-not-allowed"
+        >
+          Delete permanently
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setTyped("");
+          }}
+          className="btn-ghost"
+        >
+          Keep them
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function Section({
   title,
   accent,
@@ -385,17 +462,7 @@ export default function TravelForm({
       </form>
 
       {/* Kept outside the main form — nested forms are invalid HTML. */}
-      {editing && (
-        <form action={deleteParticipantAction} className="pt-2">
-          <input type="hidden" name="id" value={p.id} />
-          <button
-            type="submit"
-            className="text-sm text-bone-dim underline transition hover:text-tiger"
-          >
-            Remove {p.name || "this person"} from the list
-          </button>
-        </form>
-      )}
+      {editing && <DeleteEntry id={p.id} name={p.name} />}
     </div>
   );
 }

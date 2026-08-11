@@ -4,11 +4,15 @@ import { lockAction } from "@/app/actions";
 import AdminRow from "@/components/AdminRow";
 import { getRole } from "@/lib/auth";
 import { listAudit, listParticipants, usingPostgres } from "@/lib/db";
-import { EVENT, prettyTime } from "@/lib/event";
+import { EVENT, MAIN_DAY, prettyDate, prettyTime } from "@/lib/event";
 import {
   buildRuns,
   byStay,
-  runTitle,
+  earlyArrivals,
+  earlyNightHeads,
+  legTitle,
+  runNeedsVehicle,
+  runWhen,
   suggestVehicles,
   totals,
   type Run,
@@ -27,13 +31,18 @@ function RunCard({
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display font-bold text-bone">{runTitle(run)}</h3>
+        <h3 className="font-display font-bold text-bone">
+          {legTitle(run, direction)}
+        </h3>
         <span className="chip !border-tiger/40 !text-tiger whitespace-nowrap">
           {run.heads} {run.heads === 1 ? "head" : "heads"}
         </span>
       </div>
+      <p className="mt-0.5 text-xs text-bone-dim">{runWhen(run)}</p>
       <p className="mt-1 text-xs text-amber-glow">
-        Suggested: {suggestVehicles(run.heads)}
+        {runNeedsVehicle(run)
+          ? `Book: ${suggestVehicles(run.heads)}`
+          : "Own vehicle — nothing to book"}
       </p>
       <ul className="mt-3 space-y-1 text-sm text-bone-dim">
         {run.people.map((p) => (
@@ -63,9 +72,15 @@ export default async function AdminPage() {
   const arrivals = buildRuns(people, "arrive");
   const departures = buildRuns(people, "return");
   const stays = byStay(people);
+  const early = earlyArrivals(people);
+  const earlyHeads = earlyNightHeads(people);
+  const earlyUnplaced = early.reduce((n, g) => n + g.unplaced, 0);
 
   const stayOptions = [
     ...new Set(people.map((p) => p.stayAssigned).filter(Boolean)),
+  ];
+  const preNightOptions = [
+    ...new Set(people.map((p) => p.preNightStay).filter(Boolean)),
   ];
   const vehicleOptions = [
     ...new Set(people.map((p) => p.vehicleGroup).filter(Boolean)),
@@ -139,14 +154,15 @@ export default async function AdminPage() {
         )}
       </section>
 
-      {/* -------------------------------------------------- pickup plan -- */}
+      {/* -------------------------------------------------- inbound leg -- */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-bold text-leaf">
-          🛬 Pickup plan
+          🛬 Getting everyone to Tadoba
         </h2>
         <p className="mt-1 text-sm text-bone-dim">
-          Everyone arriving, grouped by day, gateway and time window. One card =
-          one vehicle run.
+          The inbound road legs, grouped by day, arrival place and time window.
+          One card = one vehicle to book. People arriving before the main day do
+          this leg the next morning — see the night-halt board below.
         </p>
         {arrivals.length === 0 ? (
           <p className="card mt-4 p-5 text-bone-dim">No arrivals entered yet.</p>
@@ -163,13 +179,79 @@ export default async function AdminPage() {
         )}
       </section>
 
-      {/* ---------------------------------------------------- drop plan -- */}
+      {/* --------------------------------------------- pre-event night -- */}
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-bold text-tiger">
-          🛫 Drop plan
+        <h2 className="font-display text-2xl font-bold text-amber-glow">
+          🌙 Night before — beds at the arrival city
         </h2>
         <p className="mt-1 text-sm text-bone-dim">
-          The same, in reverse. Watch the early-morning trains out of Chandrapur.
+          Anyone landing before {prettyDate(MAIN_DAY)} needs a room for that
+          night, normally near where they land.{" "}
+          <strong className="text-bone">
+            {earlyHeads} {earlyHeads === 1 ? "bed" : "beds"}
+          </strong>{" "}
+          needed in total
+          {earlyUnplaced > 0 && (
+            <>
+              {" — "}
+              <strong className="text-tiger">
+                {earlyUnplaced} still without a room
+              </strong>
+            </>
+          )}
+          .
+        </p>
+
+        {early.length === 0 ? (
+          <p className="card mt-4 p-5 text-bone-dim">
+            Nobody is arriving early yet, so there are no extra rooms to book.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {early.map((g) => (
+              <div key={`${g.date}-${g.gateway}`} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-display font-bold text-bone">
+                    {g.gateway}
+                  </h3>
+                  <span className="chip !border-amber-glow/40 !text-amber-glow whitespace-nowrap">
+                    {g.heads} {g.heads === 1 ? "bed" : "beds"}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-bone-dim">
+                  Night of {prettyDate(g.date)}
+                </p>
+                <ul className="mt-3 space-y-1.5 text-sm">
+                  {g.people.map((p) => (
+                    <li key={p.id} className="flex justify-between gap-2">
+                      <span className="text-bone-dim">
+                        {p.name}
+                        {headcount(p) > 1 && ` (+${headcount(p) - 1})`}
+                      </span>
+                      <span
+                        className={`shrink-0 text-right text-xs ${
+                          p.preNightStay ? "text-leaf" : "text-tiger"
+                        }`}
+                      >
+                        {p.preNightStay || "no room yet"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ------------------------------------------------- outbound leg -- */}
+      <section className="mt-12">
+        <h2 className="font-display text-2xl font-bold text-tiger">
+          🛫 Getting everyone home
+        </h2>
+        <p className="mt-1 text-sm text-bone-dim">
+          The outbound road legs from the resort. Watch the early-morning trains
+          out of Chandrapur — those cars leave before breakfast.
         </p>
         {departures.length === 0 ? (
           <p className="card mt-4 p-5 text-bone-dim">No returns entered yet.</p>
@@ -189,8 +271,12 @@ export default async function AdminPage() {
       {/* --------------------------------------------------------- stay -- */}
       <section className="mt-12">
         <h2 className="font-display text-2xl font-bold text-amber-glow">
-          🛖 Stay allocation
+          🛖 Tadoba stay — {EVENT.mainDays}
         </h2>
+        <p className="mt-1 text-sm text-bone-dim">
+          Rooms at the resort for the event itself. Separate from the night-halt
+          board above.
+        </p>
         {stays.length === 0 ? (
           <p className="card mt-4 p-5 text-bone-dim">Nobody to place yet.</p>
         ) : (
@@ -241,6 +327,7 @@ export default async function AdminPage() {
                 key={p.id}
                 p={p}
                 stayOptions={stayOptions}
+                preNightOptions={preNightOptions}
                 vehicleOptions={vehicleOptions}
               />
             ))}

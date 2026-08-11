@@ -60,6 +60,7 @@ function ensureSchema(): Promise<void> {
         stay_preference TEXT DEFAULT '',
         notes           TEXT DEFAULT '',
         stay_assigned   TEXT DEFAULT '',
+        pre_night_stay  TEXT DEFAULT '',
         vehicle_group   TEXT DEFAULT '',
         admin_notes     TEXT DEFAULT '',
         status          TEXT DEFAULT 'Confirmed',
@@ -68,6 +69,8 @@ function ensureSchema(): Promise<void> {
         updated_by      TEXT DEFAULT ''
       )
     `;
+    // Added after the first deploy, so existing tables need it backfilled.
+    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS pre_night_stay TEXT DEFAULT ''`;
     await sql`
       CREATE TABLE IF NOT EXISTS audit_log (
         id               SERIAL PRIMARY KEY,
@@ -109,6 +112,7 @@ function rowToParticipant(r: any): Participant {
     stayPreference: r.stay_preference ?? "",
     notes: r.notes ?? "",
     stayAssigned: r.stay_assigned ?? "",
+    preNightStay: r.pre_night_stay ?? "",
     vehicleGroup: r.vehicle_group ?? "",
     adminNotes: r.admin_notes ?? "",
     status: r.status ?? "Confirmed",
@@ -190,8 +194,8 @@ export async function saveParticipant(
         id, name, city, phone, guests_adults, guests_kids, food,
         arrive_date, arrive_time, arrive_gateway, arrive_mode, arrive_details,
         return_date, return_time, return_gateway, return_mode, return_details,
-        stay_preference, notes, stay_assigned, vehicle_group, admin_notes,
-        status, created_at, updated_at, updated_by
+        stay_preference, notes, stay_assigned, pre_night_stay, vehicle_group,
+        admin_notes, status, created_at, updated_at, updated_by
       ) VALUES (
         ${record.id}, ${record.name}, ${record.city}, ${record.phone},
         ${record.guestsAdults}, ${record.guestsKids}, ${record.food},
@@ -200,7 +204,8 @@ export async function saveParticipant(
         ${record.returnDate}, ${record.returnTime}, ${record.returnGateway},
         ${record.returnMode}, ${record.returnDetails},
         ${record.stayPreference}, ${record.notes}, ${record.stayAssigned},
-        ${record.vehicleGroup}, ${record.adminNotes}, ${record.status},
+        ${record.preNightStay}, ${record.vehicleGroup}, ${record.adminNotes},
+        ${record.status},
         ${record.createdAt}, ${record.updatedAt}, ${record.updatedBy}
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -214,7 +219,9 @@ export async function saveParticipant(
         return_gateway = EXCLUDED.return_gateway, return_mode = EXCLUDED.return_mode,
         return_details = EXCLUDED.return_details,
         stay_preference = EXCLUDED.stay_preference, notes = EXCLUDED.notes,
-        stay_assigned = EXCLUDED.stay_assigned, vehicle_group = EXCLUDED.vehicle_group,
+        stay_assigned = EXCLUDED.stay_assigned,
+        pre_night_stay = EXCLUDED.pre_night_stay,
+        vehicle_group = EXCLUDED.vehicle_group,
         admin_notes = EXCLUDED.admin_notes, status = EXCLUDED.status,
         updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by
     `;
@@ -304,7 +311,8 @@ const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
   returnDetails: "return details",
   stayPreference: "stay preference",
   notes: "notes",
-  stayAssigned: "assigned stay",
+  stayAssigned: "Tadoba stay",
+  preNightStay: "pre-event night stay",
   vehicleGroup: "vehicle group",
   adminNotes: "organiser notes",
   status: "status",

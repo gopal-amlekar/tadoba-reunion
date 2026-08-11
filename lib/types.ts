@@ -27,7 +27,14 @@ export type Participant = {
   notes: string;
 
   // ---- Filled in by Mayuri from the admin page ----
+  /** Where they sleep at Tadoba during the event itself. */
   stayAssigned: string;
+  /**
+   * Where they sleep the night they arrive early — usually a hotel in Nagpur
+   * or Chandrapur, sometimes the resort itself if they drive straight in.
+   * Only relevant for people landing before the main day.
+   */
+  preNightStay: string;
   vehicleGroup: string;
   adminNotes: string;
   status: string;
@@ -72,6 +79,7 @@ export const EMPTY_PARTICIPANT: Omit<Participant, "id" | "createdAt" | "updatedA
   stayPreference: "",
   notes: "",
   stayAssigned: "",
+  preNightStay: "",
   vehicleGroup: "",
   adminNotes: "",
   status: "Confirmed",

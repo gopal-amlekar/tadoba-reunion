@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AnimalAvatar from "@/components/AnimalAvatar";
 import { adminUpdateAction } from "@/app/actions";
-import { prettyDate, prettyTime, STATUSES } from "@/lib/event";
+import { MAIN_DAY, prettyDate, prettyTime, STATUSES } from "@/lib/event";
 import { headcount, type Participant } from "@/lib/types";
 
 /**
@@ -11,12 +11,16 @@ import { headcount, type Participant } from "@/lib/types";
 export default function AdminRow({
   p,
   stayOptions,
+  preNightOptions,
   vehicleOptions,
 }: {
   p: Participant;
   stayOptions: string[];
+  preNightOptions: string[];
   vehicleOptions: string[];
 }) {
+  // Only people landing before the main day need a bed for the night before.
+  const arrivesEarly = Boolean(p.arriveDate && p.arriveDate < MAIN_DAY);
   return (
     <div className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -84,13 +88,13 @@ export default function AdminRow({
 
       <form
         action={adminUpdateAction}
-        className="mt-4 grid gap-3 border-t border-jungle-800 pt-4 sm:grid-cols-4"
+        className="mt-4 grid gap-3 border-t border-jungle-800 pt-4 sm:grid-cols-2 lg:grid-cols-5"
       >
         <input type="hidden" name="id" value={p.id} />
 
         <div>
           <label className="label" htmlFor={`stay-${p.id}`}>
-            Stay
+            Tadoba stay
           </label>
           <input
             id={`stay-${p.id}`}
@@ -99,6 +103,29 @@ export default function AdminRow({
             list="stay-options"
             placeholder="Resort / room"
             className="field !py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="label" htmlFor={`prenight-${p.id}`}>
+            Night before
+          </label>
+          <input
+            id={`prenight-${p.id}`}
+            name="preNightStay"
+            defaultValue={p.preNightStay}
+            list="prenight-options"
+            // readOnly rather than disabled: a disabled input posts nothing, which
+            // would silently wipe a booking if someone edits their arrival date.
+            readOnly={!arrivesEarly}
+            placeholder={
+              arrivesEarly
+                ? `Hotel in ${p.arriveGateway || "arrival city"}`
+                : "Not needed — arrives on the day"
+            }
+            className={`field !py-2 text-sm ${
+              arrivesEarly ? "" : "cursor-not-allowed opacity-40"
+            }`}
           />
         </div>
 
@@ -147,7 +174,7 @@ export default function AdminRow({
           />
         </div>
 
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-2 lg:col-span-5">
           <button type="submit" className="btn-ghost !py-2 text-sm">
             Save
           </button>
@@ -165,6 +192,11 @@ export default function AdminRow({
       {/* Shared suggestion lists so repeat values are one keystroke. */}
       <datalist id="stay-options">
         {stayOptions.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+      <datalist id="prenight-options">
+        {preNightOptions.map((s) => (
           <option key={s} value={s} />
         ))}
       </datalist>

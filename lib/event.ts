@@ -14,6 +14,12 @@ export const EVENT = {
   startsAt: "2026-11-21T09:00:00+05:30",
 } as const;
 
+/**
+ * The main day everyone must be at the resort by. Anyone arriving before this
+ * needs a bed for the night in between — usually at their arrival city.
+ */
+export const MAIN_DAY = "2026-11-21";
+
 /** Arrivals happen on the 20th or 21st; returns on the 22nd, sometimes later. */
 export const ARRIVAL_DATES = [
   { value: "2026-11-20", label: "Fri 20 Nov (a day early)" },

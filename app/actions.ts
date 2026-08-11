@@ -99,6 +99,7 @@ export async function saveParticipantAction(
     // Organiser-only fields are never posted by the guest form, so preserve
     // whatever Mayuri has already set instead of blanking it.
     stayAssigned: existing?.stayAssigned ?? "",
+    preNightStay: existing?.preNightStay ?? "",
     vehicleGroup: existing?.vehicleGroup ?? "",
     adminNotes: existing?.adminNotes ?? "",
     status: str(fd, "status") || existing?.status || "Confirmed",
@@ -141,6 +142,7 @@ export async function adminUpdateAction(fd: FormData): Promise<void> {
     {
       ...existing,
       stayAssigned: str(fd, "stayAssigned"),
+      preNightStay: str(fd, "preNightStay"),
       vehicleGroup: str(fd, "vehicleGroup"),
       adminNotes: str(fd, "adminNotes"),
       status: str(fd, "status") || existing.status,

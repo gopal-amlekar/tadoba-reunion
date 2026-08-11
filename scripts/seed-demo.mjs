@@ -25,6 +25,7 @@ const base = {
   stayPreference: "",
   notes: "",
   stayAssigned: "",
+  preNightStay: "",
   vehicleGroup: "",
   adminNotes: "",
   status: "Confirmed",
@@ -42,6 +43,7 @@ const participants = [
     returnDate: "2026-11-22", returnTime: "18:00", returnGateway: "Nagpur",
     returnMode: "Flight",
     stayAssigned: "Tigress Retreat - Cottage 1", vehicleGroup: "Nagpur TT-1",
+    preNightStay: "Hotel Centre Point, Nagpur",
     notes: "Reaching a day early to check the resort.",
   },
   {
