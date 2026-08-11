@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-jungle-950: #061310;
+  --color-jungle-900: #0a1e18;
+  --color-jungle-850: #0e2820;
+  --color-jungle-800: #123528;
+  --color-jungle-700: #1b4a36;
+  --color-jungle-600: #256b4c;
+  --color-jungle-500: #34926a;
+
+  --color-leaf: #5ee2a0;
+  --color-tiger: #f97316;
+  --color-tiger-light: #fb923c;
+  --color-amber-glow: #fbbf24;
+  --color-bone: #f4efe2;
+  --color-bone-dim: #b8b3a4;
+
+  --font-display: var(--font-baloo), system-ui, sans-serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-jungle-950);
+  color: var(--color-bone);
+  font-family: var(--font-body);
+  /* Faint canopy glow so the dark background isn't a flat slab. */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(52, 146, 106, 0.28), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(249, 115, 22, 0.12), transparent);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-jungle-700/60 bg-jungle-900/70 backdrop-blur-sm;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-leaf/70;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-jungle-700 bg-jungle-950/70 px-3.5 py-2.5
+           text-bone placeholder:text-bone-dim/50
+           focus:border-tiger focus:ring-2 focus:ring-tiger/30 focus:outline-none;
+  }
+
+  /* Native selects render their dropdown list with the OS palette, so the
+     option list needs its own dark colours or it goes white-on-white. */
+  .field option {
+    background-color: #0a1e18;
+    color: #f4efe2;
+  }
+
+  /* Tailwind v4's @apply only accepts real utilities, so the shared button
+     base is repeated rather than composed from a .btn class. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
+           font-semibold transition active:scale-[0.98] disabled:opacity-50
+           bg-tiger text-jungle-950 hover:bg-tiger-light;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
+           font-semibold transition active:scale-[0.98] disabled:opacity-50
+           border border-jungle-700 bg-jungle-900/60 text-bone
+           hover:border-leaf/50 hover:text-leaf;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-jungle-700
+           bg-jungle-850 px-3 py-1 text-xs font-medium text-bone-dim;
+  }
+}
+
+/* Tiger stripes — used as a thin divider under the hero. */
+.stripes {
+  background-image: repeating-linear-gradient(
+    115deg,
+    var(--color-tiger) 0 6px,
+    transparent 6px 10px,
+    var(--color-jungle-950) 10px 16px,
+    transparent 16px 22px
+  );
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

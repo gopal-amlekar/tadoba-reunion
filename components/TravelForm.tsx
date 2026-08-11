@@ -1,0 +1,401 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import Link from "next/link";
+import AnimalAvatar from "@/components/AnimalAvatar";
+import {
+  deleteParticipantAction,
+  saveParticipantAction,
+  type FormState,
+} from "@/app/actions";
+import {
+  ARRIVAL_DATES,
+  CITIES,
+  FOOD_PREFERENCES,
+  GATEWAYS,
+  MODES,
+  RETURN_DATES,
+  STATUSES,
+} from "@/lib/event";
+import type { Participant } from "@/lib/types";
+import { EMPTY_PARTICIPANT } from "@/lib/types";
+
+const initial: FormState = {};
+
+type Option = { value: string; label: string };
+
+/**
+ * A dropdown that can always fall back to free text — travel plans never fit
+ * neatly into a fixed list, and forcing them to is how you lose information.
+ */
+function SelectWithOther({
+  name,
+  label,
+  options,
+  value,
+  hint,
+}: {
+  name: string;
+  label: string;
+  options: readonly Option[];
+  value: string;
+  hint?: string;
+}) {
+  const known = options.some((o) => o.value === value);
+  const [picked, setPicked] = useState(value && !known ? "__other" : value);
+
+  return (
+    <div>
+      <label className="label" htmlFor={name}>
+        {label}
+      </label>
+      <select
+        id={name}
+        name={name}
+        value={picked}
+        onChange={(e) => setPicked(e.target.value)}
+        className="field"
+      >
+        <option value="">— choose —</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+        <option value="__other">Something else…</option>
+      </select>
+      {picked === "__other" && (
+        <input
+          name={`${name}Other`}
+          defaultValue={known ? "" : value}
+          placeholder="Type it in"
+          className="field mt-2"
+        />
+      )}
+      {hint && <p className="mt-1.5 text-xs text-bone-dim">{hint}</p>}
+    </div>
+  );
+}
+
+function Plain({
+  name,
+  label,
+  options,
+  value,
+}: {
+  name: string;
+  label: string;
+  options: readonly string[];
+  value: string;
+}) {
+  return (
+    <div>
+      <label className="label" htmlFor={name}>
+        {label}
+      </label>
+      <select id={name} name={name} defaultValue={value} className="field">
+        <option value="">— choose —</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  accent,
+  children,
+}: {
+  title: string;
+  accent: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card p-5 sm:p-6">
+      <h2 className={`font-display text-xl font-bold ${accent}`}>{title}</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
+export default function TravelForm({
+  participant,
+  who,
+}: {
+  participant?: Participant;
+  who: string;
+}) {
+  const p = participant ?? { ...EMPTY_PARTICIPANT, id: "" };
+  const editing = Boolean(participant);
+  const [state, action, pending] = useActionState(saveParticipantAction, initial);
+  // Tracked in state purely so the avatar updates live as you type.
+  const [name, setName] = useState(p.name);
+
+  return (
+    <div className="space-y-5">
+      <form action={action} className="space-y-5">
+        <input type="hidden" name="id" value={p.id ?? ""} />
+        <input type="hidden" name="who" value={who} />
+
+        {/* ------------------------------------------------ the person -- */}
+        <Section title="🙋 Who is coming" accent="text-leaf">
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="name">
+              Full name *
+            </label>
+            <div className="flex items-center gap-3">
+              <AnimalAvatar name={name} size={52} />
+              <input
+                id="name"
+                name="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Your name (or your friend's)"
+                className="field"
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-bone-dim">
+              Everyone gets a jungle animal, picked from their name. No idea why
+              you got the one you got.
+            </p>
+          </div>
+
+          <SelectWithOther
+            name="city"
+            label="Travelling from"
+            value={p.city}
+            options={CITIES.map((c) => ({ value: c, label: c }))}
+          />
+
+          <div>
+            <label className="label" htmlFor="phone">
+              Phone / WhatsApp
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              defaultValue={p.phone}
+              placeholder="For pickup coordination"
+              className="field"
+            />
+          </div>
+
+          <Plain
+            name="food"
+            label="Food preference"
+            options={FOOD_PREFERENCES}
+            value={p.food}
+          />
+
+          <div>
+            <label className="label" htmlFor="guestsAdults">
+              Adults coming with you
+            </label>
+            <input
+              id="guestsAdults"
+              name="guestsAdults"
+              type="number"
+              min={0}
+              max={10}
+              defaultValue={p.guestsAdults}
+              className="field"
+            />
+            <p className="mt-1.5 text-xs text-bone-dim">
+              Not counting yourself — spouse, sibling, whoever.
+            </p>
+          </div>
+
+          <div>
+            <label className="label" htmlFor="guestsKids">
+              Kids coming with you
+            </label>
+            <input
+              id="guestsKids"
+              name="guestsKids"
+              type="number"
+              min={0}
+              max={10}
+              defaultValue={p.guestsKids}
+              className="field"
+            />
+          </div>
+        </Section>
+
+        {/* --------------------------------------------------- arrival -- */}
+        <Section title="🛬 Getting there" accent="text-leaf">
+          <SelectWithOther
+            name="arriveDate"
+            label="Arrival date"
+            value={p.arriveDate}
+            options={[...ARRIVAL_DATES]}
+          />
+
+          <div>
+            <label className="label" htmlFor="arriveTime">
+              Arrival time
+            </label>
+            <input
+              id="arriveTime"
+              name="arriveTime"
+              type="time"
+              defaultValue={p.arriveTime}
+              className="field"
+            />
+          </div>
+
+          <Plain
+            name="arriveGateway"
+            label="Landing / arriving at"
+            options={GATEWAYS}
+            value={p.arriveGateway}
+          />
+
+          <Plain
+            name="arriveMode"
+            label="Mode of travel"
+            options={MODES}
+            value={p.arriveMode}
+          />
+
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="arriveDetails">
+              Train / flight details
+            </label>
+            <input
+              id="arriveDetails"
+              name="arriveDetails"
+              defaultValue={p.arriveDetails}
+              placeholder="e.g. 12289 Sewagram Exp, or 6E-234 Mumbai → Nagpur"
+              className="field"
+            />
+          </div>
+        </Section>
+
+        {/* ---------------------------------------------------- return -- */}
+        <Section title="🛫 Heading back" accent="text-tiger">
+          <SelectWithOther
+            name="returnDate"
+            label="Return date"
+            value={p.returnDate}
+            options={[...RETURN_DATES]}
+          />
+
+          <div>
+            <label className="label" htmlFor="returnTime">
+              Return time
+            </label>
+            <input
+              id="returnTime"
+              name="returnTime"
+              type="time"
+              defaultValue={p.returnTime}
+              className="field"
+            />
+          </div>
+
+          <Plain
+            name="returnGateway"
+            label="Leaving from"
+            options={GATEWAYS}
+            value={p.returnGateway}
+          />
+
+          <Plain
+            name="returnMode"
+            label="Mode of travel"
+            options={MODES}
+            value={p.returnMode}
+          />
+
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="returnDetails">
+              Train / flight details
+            </label>
+            <input
+              id="returnDetails"
+              name="returnDetails"
+              defaultValue={p.returnDetails}
+              placeholder="Leave blank if not booked yet"
+              className="field"
+            />
+          </div>
+        </Section>
+
+        {/* ----------------------------------------------------- extras -- */}
+        <Section title="🛖 Stay & anything else" accent="text-amber-glow">
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="stayPreference">
+              Where would you like to stay?
+            </label>
+            <input
+              id="stayPreference"
+              name="stayPreference"
+              defaultValue={p.stayPreference}
+              placeholder="Happy with whatever Mayuri books, or suggest a resort"
+              className="field"
+            />
+            <p className="mt-1.5 text-xs text-bone-dim">
+              Leave it blank and Mayuri will assign you a room.
+            </p>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="label" htmlFor="notes">
+              Notes for the organisers
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              rows={3}
+              defaultValue={p.notes}
+              placeholder="Anything at all — reaching late, need a ground-floor room, bringing a cake…"
+              className="field"
+            />
+          </div>
+
+          <Plain
+            name="status"
+            label="How sure are you?"
+            options={STATUSES}
+            value={p.status || "Confirmed"}
+          />
+        </Section>
+
+        {state.error && (
+          <p className="rounded-lg border border-tiger/50 bg-tiger/10 px-3 py-2 text-sm text-tiger-light">
+            {state.error}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" disabled={pending} className="btn-primary">
+            {pending ? "Saving…" : editing ? "Save changes" : "Add to the list 🐾"}
+          </button>
+          <Link href="/travel" className="btn-ghost">
+            Cancel
+          </Link>
+        </div>
+      </form>
+
+      {/* Kept outside the main form — nested forms are invalid HTML. */}
+      {editing && (
+        <form action={deleteParticipantAction} className="pt-2">
+          <input type="hidden" name="id" value={p.id} />
+          <button
+            type="submit"
+            className="text-sm text-bone-dim underline transition hover:text-tiger"
+          >
+            Remove {p.name || "this person"} from the list
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
