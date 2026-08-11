@@ -1,5 +1,5 @@
 import { EVENT, MAIN_DAY, SLOTS, prettyDate, slotFor } from "./event";
-import { headcount, type Participant } from "./types";
+import { type Participant } from "./types";
 
 /**
  * The whole point of the admin page: turn 30 individual rows into the handful
@@ -46,7 +46,7 @@ export function buildRuns(
       heads: 0,
     };
     run.people.push(p);
-    run.heads += headcount(p);
+    run.heads += 1;
     runs.set(key, run);
   }
 
@@ -147,7 +147,7 @@ export function earlyArrivals(people: Participant[]): EarlyGroup[] {
       unplaced: 0,
     };
     g.people.push(p);
-    g.heads += headcount(p);
+    g.heads += 1;
     if (!p.preNightStay) g.unplaced += 1;
     groups.set(key, g);
   }
@@ -169,9 +169,6 @@ export const VENUE_SHORT = EVENT.venue.split("-")[0].trim();
 
 export type Totals = {
   entries: number;
-  heads: number;
-  adults: number;
-  kids: number;
   confirmed: number;
   tentative: number;
   cancelled: number;
@@ -186,15 +183,11 @@ export function totals(people: Participant[]): Totals {
 
   for (const p of active) {
     const key = p.food || "Not given";
-    // Food counts are per plate, so the whole family counts, not just the member.
-    food[key] = (food[key] ?? 0) + headcount(p);
+    food[key] = (food[key] ?? 0) + 1;
   }
 
   return {
     entries: active.length,
-    heads: active.reduce((n, p) => n + headcount(p), 0),
-    adults: active.reduce((n, p) => n + 1 + (p.guestsAdults || 0), 0),
-    kids: active.reduce((n, p) => n + (p.guestsKids || 0), 0),
     confirmed: people.filter((p) => p.status === "Confirmed").length,
     tentative: people.filter((p) => p.status === "Tentative").length,
     cancelled: people.filter((p) => p.status === "Cancelled").length,
@@ -216,11 +209,7 @@ export function byStay(people: Participant[]): Array<{
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   return [...groups.entries()]
-    .map(([stay, list]) => ({
-      stay,
-      people: list,
-      heads: list.reduce((n, p) => n + headcount(p), 0),
-    }))
+    .map(([stay, list]) => ({ stay, people: list, heads: list.length }))
     .sort((a, b) =>
       a.stay === "Not assigned yet"
         ? 1

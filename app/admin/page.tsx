@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { lockAction } from "@/app/actions";
 import AdminRow from "@/components/AdminRow";
 import { getRole } from "@/lib/auth";
 import { listAudit, listParticipants, usingPostgres } from "@/lib/db";
@@ -17,7 +16,6 @@ import {
   totals,
   type Run,
 } from "@/lib/logistics";
-import { headcount } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +45,7 @@ function RunCard({
       <ul className="mt-3 space-y-1 text-sm text-bone-dim">
         {run.people.map((p) => (
           <li key={p.id} className="flex justify-between gap-2">
-            <span>
-              {p.name}
-              {headcount(p) > 1 && ` (+${headcount(p) - 1})`}
-            </span>
+            <span>{p.name}</span>
             <span className="shrink-0 text-xs">
               {prettyTime(direction === "arrive" ? p.arriveTime : p.returnTime)}
               {(direction === "arrive" ? p.arriveMode : p.returnMode) &&
@@ -101,11 +96,6 @@ export default async function AdminPage() {
           <a href="/api/export" className="btn-ghost !py-2 text-sm">
             ⬇ Export CSV
           </a>
-          <form action={lockAction}>
-            <button type="submit" className="btn-ghost !py-2 text-sm">
-              Lock
-            </button>
-          </form>
         </div>
       </div>
 
@@ -121,8 +111,8 @@ export default async function AdminPage() {
       {/* ------------------------------------------------------- totals -- */}
       <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { big: t.entries, small: "entries", tone: "text-bone" },
-          { big: t.heads, small: "total heads to feed & sleep", tone: "text-tiger" },
+          { big: t.entries, small: "people coming", tone: "text-bone" },
+          { big: t.confirmed, small: "confirmed", tone: "text-tiger" },
           { big: t.tentative, small: "still tentative", tone: "text-amber-glow" },
           { big: t.unassignedStay, small: "without a stay assigned", tone: "text-leaf" },
         ].map((s) => (
@@ -136,9 +126,6 @@ export default async function AdminPage() {
       </section>
 
       <section className="mt-3 flex flex-wrap gap-2">
-        <span className="chip">
-          {t.adults} adults · {t.kids} kids
-        </span>
         {Object.entries(t.food).map(([k, v]) => (
           <span key={k} className="chip">
             {k}: {v}
@@ -224,10 +211,7 @@ export default async function AdminPage() {
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {g.people.map((p) => (
                     <li key={p.id} className="flex justify-between gap-2">
-                      <span className="text-bone-dim">
-                        {p.name}
-                        {headcount(p) > 1 && ` (+${headcount(p) - 1})`}
-                      </span>
+                      <span className="text-bone-dim">{p.name}</span>
                       <span
                         className={`shrink-0 text-right text-xs ${
                           p.preNightStay ? "text-leaf" : "text-tiger"
@@ -291,10 +275,7 @@ export default async function AdminPage() {
                 </div>
                 <ul className="mt-2 text-sm text-bone-dim">
                   {g.people.map((p) => (
-                    <li key={p.id}>
-                      {p.name}
-                      {headcount(p) > 1 && ` (+${headcount(p) - 1})`}
-                    </li>
+                    <li key={p.id}>{p.name}</li>
                   ))}
                 </ul>
               </div>

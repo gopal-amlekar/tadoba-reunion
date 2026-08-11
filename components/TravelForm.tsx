@@ -271,38 +271,6 @@ export default function TravelForm({
             value={p.food}
           />
 
-          <div>
-            <label className="label" htmlFor="guestsAdults">
-              Adults coming with you
-            </label>
-            <input
-              id="guestsAdults"
-              name="guestsAdults"
-              type="number"
-              min={0}
-              max={10}
-              defaultValue={p.guestsAdults}
-              className="field"
-            />
-            <p className="mt-1.5 text-xs text-bone-dim">
-              Not counting yourself — spouse, sibling, whoever.
-            </p>
-          </div>
-
-          <div>
-            <label className="label" htmlFor="guestsKids">
-              Kids coming with you
-            </label>
-            <input
-              id="guestsKids"
-              name="guestsKids"
-              type="number"
-              min={0}
-              max={10}
-              defaultValue={p.guestsKids}
-              className="field"
-            />
-          </div>
         </Section>
 
         {/* --------------------------------------------------- arrival -- */}

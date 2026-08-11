@@ -62,12 +62,7 @@ export const MODES = [
   "Not decided yet",
 ] as const;
 
-export const FOOD_PREFERENCES = [
-  "Veg",
-  "Non-veg",
-  "Jain",
-  "No preference",
-] as const;
+export const FOOD_PREFERENCES = ["Veg", "Non-veg"] as const;
 
 export const STATUSES = ["Confirmed", "Tentative", "Cancelled"] as const;
 

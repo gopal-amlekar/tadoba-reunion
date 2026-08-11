@@ -5,7 +5,6 @@ import TigerHero from "@/components/TigerHero";
 import { isUnlocked } from "@/lib/auth";
 import { listParticipants } from "@/lib/db";
 import { EVENT, prettyDate, prettyTime } from "@/lib/event";
-import { headcount } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +14,6 @@ export default async function HomePage() {
     (p) => p.status !== "Cancelled",
   );
 
-  const heads = everyone.reduce((sum, p) => sum + headcount(p), 0);
   const cities = [...new Set(everyone.map((p) => p.city).filter(Boolean))];
 
   return (
@@ -64,7 +62,12 @@ export default async function HomePage() {
       <section className="grid gap-4 py-10 sm:grid-cols-3">
         {[
           { big: String(everyone.length), small: "friends signed up" },
-          { big: String(heads), small: "total heads (with family)" },
+          {
+            big: String(
+              everyone.filter((p) => p.status === "Confirmed").length,
+            ),
+            small: "confirmed so far",
+          },
           { big: String(cities.length || "—"), small: "cities travelling in" },
         ].map((s) => (
           <div key={s.small} className="card p-5">
@@ -157,7 +160,6 @@ export default async function HomePage() {
                       </div>
                       <div className="text-sm text-bone-dim">
                         {p.city || "City not given"}
-                        {headcount(p) > 1 && ` · ${headcount(p)} people`}
                       </div>
                     </div>
                   </div>

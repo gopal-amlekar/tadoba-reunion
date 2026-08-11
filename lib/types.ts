@@ -3,9 +3,6 @@ export type Participant = {
   name: string;
   city: string;
   phone: string;
-  /** Adults travelling with them, not counting themselves. */
-  guestsAdults: number;
-  guestsKids: number;
   food: string;
 
   arriveDate: string;
@@ -54,18 +51,11 @@ export type AuditEntry = {
   at: string;
 };
 
-/** Total heads a participant brings, including themselves. */
-export function headcount(p: Participant): number {
-  return 1 + (p.guestsAdults || 0) + (p.guestsKids || 0);
-}
-
 export const EMPTY_PARTICIPANT: Omit<Participant, "id" | "createdAt" | "updatedAt" | "updatedBy"> = {
   name: "",
   city: "",
   phone: "",
-  guestsAdults: 0,
-  guestsKids: 0,
-  food: "No preference",
+  food: "Veg",
   arriveDate: "",
   arriveTime: "",
   arriveGateway: "",

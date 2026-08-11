@@ -13,8 +13,6 @@ import path from "node:path";
 
 const base = {
   phone: "",
-  guestsAdults: 0,
-  guestsKids: 0,
   food: "Veg",
   arriveGateway: "",
   arriveMode: "",
@@ -37,8 +35,7 @@ const base = {
 const participants = [
   {
     ...base, id: "demo-1", name: "Mayuri Deshpande", city: "Pune",
-    phone: "+919812345678", guestsAdults: 1,
-    arriveDate: "2026-11-20", arriveTime: "14:30", arriveGateway: "Nagpur",
+    phone: "+919812345678", arriveDate: "2026-11-20", arriveTime: "14:30", arriveGateway: "Nagpur",
     arriveMode: "Flight", arriveDetails: "6E-234 Pune to Nagpur",
     returnDate: "2026-11-22", returnTime: "18:00", returnGateway: "Nagpur",
     returnMode: "Flight",
@@ -48,15 +45,14 @@ const participants = [
   },
   {
     ...base, id: "demo-2", name: "Amit Kulkarni", city: "Mumbai",
-    food: "Non-veg", guestsAdults: 1, guestsKids: 2,
-    arriveDate: "2026-11-20", arriveTime: "15:10", arriveGateway: "Nagpur",
+    food: "Non-veg", arriveDate: "2026-11-20", arriveTime: "15:10", arriveGateway: "Nagpur",
     arriveMode: "Flight",
     returnDate: "2026-11-22", returnTime: "19:20", returnGateway: "Nagpur",
     returnMode: "Flight",
     stayAssigned: "Tigress Retreat - Cottage 1", vehicleGroup: "Nagpur TT-1",
   },
   {
-    ...base, id: "demo-3", name: "Sneha Jadhav", city: "Solapur", food: "Jain",
+    ...base, id: "demo-3", name: "Sneha Jadhav", city: "Solapur", food: "Veg",
     arriveDate: "2026-11-21", arriveTime: "06:40", arriveGateway: "Chandrapur",
     arriveMode: "Train", arriveDetails: "12289 Sewagram Express",
     returnDate: "2026-11-22", returnTime: "07:15", returnGateway: "Chandrapur",
@@ -64,8 +60,7 @@ const participants = [
     stayPreference: "Somewhere close to the gate please", status: "Tentative",
   },
   {
-    ...base, id: "demo-4", name: "Rohit Pawar", city: "Beed", guestsAdults: 1,
-    arriveDate: "2026-11-21", arriveTime: "09:00",
+    ...base, id: "demo-4", name: "Rohit Pawar", city: "Beed", arriveDate: "2026-11-21", arriveTime: "09:00",
     arriveGateway: "Straight to the resort", arriveMode: "Own car",
     returnDate: "2026-11-23", returnTime: "08:00",
     returnGateway: "Straight to the resort", returnMode: "Own car",

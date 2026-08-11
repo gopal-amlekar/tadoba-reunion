@@ -44,8 +44,6 @@ function ensureSchema(): Promise<void> {
         name            TEXT NOT NULL,
         city            TEXT DEFAULT '',
         phone           TEXT DEFAULT '',
-        guests_adults   INTEGER DEFAULT 0,
-        guests_kids     INTEGER DEFAULT 0,
         food            TEXT DEFAULT '',
         arrive_date     TEXT DEFAULT '',
         arrive_time     TEXT DEFAULT '',
@@ -96,8 +94,6 @@ function rowToParticipant(r: any): Participant {
     name: r.name ?? "",
     city: r.city ?? "",
     phone: r.phone ?? "",
-    guestsAdults: r.guests_adults ?? 0,
-    guestsKids: r.guests_kids ?? 0,
     food: r.food ?? "",
     arriveDate: r.arrive_date ?? "",
     arriveTime: r.arrive_time ?? "",
@@ -191,14 +187,14 @@ export async function saveParticipant(
     await ensureSchema();
     await sql`
       INSERT INTO participants (
-        id, name, city, phone, guests_adults, guests_kids, food,
+        id, name, city, phone, food,
         arrive_date, arrive_time, arrive_gateway, arrive_mode, arrive_details,
         return_date, return_time, return_gateway, return_mode, return_details,
         stay_preference, notes, stay_assigned, pre_night_stay, vehicle_group,
         admin_notes, status, created_at, updated_at, updated_by
       ) VALUES (
         ${record.id}, ${record.name}, ${record.city}, ${record.phone},
-        ${record.guestsAdults}, ${record.guestsKids}, ${record.food},
+        ${record.food},
         ${record.arriveDate}, ${record.arriveTime}, ${record.arriveGateway},
         ${record.arriveMode}, ${record.arriveDetails},
         ${record.returnDate}, ${record.returnTime}, ${record.returnGateway},
@@ -210,7 +206,6 @@ export async function saveParticipant(
       )
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name, city = EXCLUDED.city, phone = EXCLUDED.phone,
-        guests_adults = EXCLUDED.guests_adults, guests_kids = EXCLUDED.guests_kids,
         food = EXCLUDED.food,
         arrive_date = EXCLUDED.arrive_date, arrive_time = EXCLUDED.arrive_time,
         arrive_gateway = EXCLUDED.arrive_gateway, arrive_mode = EXCLUDED.arrive_mode,
@@ -296,8 +291,6 @@ const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
   name: "name",
   city: "city",
   phone: "phone",
-  guestsAdults: "accompanying adults",
-  guestsKids: "kids",
   food: "food preference",
   arriveDate: "arrival date",
   arriveTime: "arrival time",

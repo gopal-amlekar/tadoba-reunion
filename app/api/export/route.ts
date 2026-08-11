@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRole } from "@/lib/auth";
 import { listParticipants } from "@/lib/db";
-import { headcount, type Participant } from "@/lib/types";
+import { type Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +9,6 @@ const COLUMNS: Array<[string, (p: Participant) => string | number]> = [
   ["Name", (p) => p.name],
   ["City", (p) => p.city],
   ["Phone", (p) => p.phone],
-  ["Total heads", (p) => headcount(p)],
-  ["Adults with", (p) => p.guestsAdults],
-  ["Kids with", (p) => p.guestsKids],
   ["Food", (p) => p.food],
   ["Arrive date", (p) => p.arriveDate],
   ["Arrive time", (p) => p.arriveTime],

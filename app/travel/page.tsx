@@ -4,7 +4,6 @@ import AnimalAvatar from "@/components/AnimalAvatar";
 import { getRole, getWho } from "@/lib/auth";
 import { listParticipants } from "@/lib/db";
 import { prettyDate, prettyTime } from "@/lib/event";
-import { headcount } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +70,6 @@ export default async function TravelPage({
                     </div>
                     <div className="text-sm text-bone-dim">
                       {p.city || "City not given"}
-                      {headcount(p) > 1 && ` · ${headcount(p)} people`}
                       {p.food && ` · ${p.food}`}
                     </div>
                   </div>

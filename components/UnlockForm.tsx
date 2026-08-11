@@ -20,7 +20,6 @@ export default function UnlockForm({ defaultWho }: { defaultWho: string }) {
           defaultValue={defaultWho}
           required
           autoComplete="name"
-          placeholder="e.g. Mayuri"
           className="field"
         />
         <p className="mt-1.5 text-xs text-bone-dim">

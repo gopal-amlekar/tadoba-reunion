@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Baloo_2, Inter } from "next/font/google";
 import Link from "next/link";
+import { lockAction } from "@/app/actions";
 import JungleBackdrop from "@/components/JungleBackdrop";
 import { EVENT } from "@/lib/event";
 import { getRole } from "@/lib/auth";
@@ -64,6 +65,18 @@ export default async function RootLayout({
                 <Link href="/unlock" className="btn-primary !px-4 !py-1.5 text-sm">
                   Enter details
                 </Link>
+              )}
+              {role && (
+                // Shared devices and borrowed phones: everyone needs a way out,
+                // not just the organiser.
+                <form action={lockAction}>
+                  <button
+                    type="submit"
+                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-tiger sm:px-3"
+                  >
+                    Log out
+                  </button>
+                </form>
               )}
             </span>
           </nav>

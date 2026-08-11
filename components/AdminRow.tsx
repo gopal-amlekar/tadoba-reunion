@@ -2,7 +2,7 @@ import Link from "next/link";
 import AnimalAvatar from "@/components/AnimalAvatar";
 import { adminUpdateAction } from "@/app/actions";
 import { MAIN_DAY, prettyDate, prettyStamp, prettyTime, STATUSES } from "@/lib/event";
-import { headcount, type Participant } from "@/lib/types";
+import { type Participant } from "@/lib/types";
 
 /**
  * One participant as Mayuri sees them: their travel facts read-only on the
@@ -35,10 +35,6 @@ export default function AdminRow({
           </Link>
           <div className="text-sm text-bone-dim">
             {p.city || "City not given"}
-            {headcount(p) > 1 &&
-              ` · ${headcount(p)} heads (${1 + p.guestsAdults} adult${
-                1 + p.guestsAdults > 1 ? "s" : ""
-              }${p.guestsKids ? `, ${p.guestsKids} kid${p.guestsKids > 1 ? "s" : ""}` : ""})`}
             {p.food && ` · ${p.food}`}
             {p.phone && ` · ${p.phone}`}
           </div>

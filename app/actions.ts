@@ -77,8 +77,6 @@ export async function saveParticipantAction(
     name,
     city: choice(fd, "city"),
     phone: str(fd, "phone"),
-    guestsAdults: num(fd, "guestsAdults"),
-    guestsKids: num(fd, "guestsKids"),
     food: str(fd, "food"),
 
     arriveDate: choice(fd, "arriveDate"),
