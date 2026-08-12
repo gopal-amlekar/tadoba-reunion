@@ -4,6 +4,7 @@ import Link from "next/link";
 import { lockAction } from "@/app/actions";
 import JungleBackdrop from "@/components/JungleBackdrop";
 import NavLink from "@/components/NavLink";
+import TigerMark from "@/components/TigerMark";
 import { EVENT } from "@/lib/event";
 import { getRole } from "@/lib/auth";
 import "./globals.css";
@@ -21,6 +22,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Needed so the share-preview image resolves to an absolute URL.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://tadoba-reunion.vercel.app",
+  ),
   title: `${EVENT.name} ${EVENT.year}`,
   description: `${EVENT.tagline} ${EVENT.mainDays} at ${EVENT.venue}.`,
 };
@@ -41,9 +46,10 @@ export default async function RootLayout({
           <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-4">
             <Link
               href="/"
-              className="font-display text-lg font-bold text-bone transition hover:text-tiger"
+              className="flex items-center gap-2 font-display text-lg font-bold text-bone transition hover:text-tiger"
             >
-              🐯 {EVENT.name}
+              <TigerMark size={26} />
+              {EVENT.name}
             </Link>
             <span className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
               {role && (
