@@ -117,11 +117,35 @@ export function prettyStamp(iso: string): string {
   });
 }
 
+/**
+ * Times are stored as 24-hour "HH:MM" because that string sorts correctly and
+ * drops straight into the pickup slots. Nobody in the group should ever have to
+ * read it in that form, so every screen — and the entry form — goes through
+ * these two and talks in AM/PM.
+ */
+export type Clock12 = { hour: number; minute: number; meridiem: "AM" | "PM" };
+
+export function to12Hour(time: string | null | undefined): Clock12 | null {
+  if (!time) return null;
+  const [h, m] = time.split(":").map(Number);
+  if (!Number.isInteger(h) || h < 0 || h > 23) return null;
+  if (!Number.isInteger(m) || m < 0 || m > 59) return null;
+  return {
+    hour: h % 12 === 0 ? 12 : h % 12,
+    minute: m,
+    meridiem: h < 12 ? "AM" : "PM",
+  };
+}
+
+/** The inverse — back to the stored "HH:MM". */
+export function to24Hour(hour: number, minute: number, meridiem: string): string {
+  const h = (hour % 12) + (meridiem === "PM" ? 12 : 0);
+  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 export function prettyTime(time: string | null | undefined): string {
   if (!time) return "—";
-  const [h, m] = time.split(":").map(Number);
-  if (Number.isNaN(h)) return time;
-  const suffix = h < 12 ? "AM" : "PM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${suffix}`;
+  const t = to12Hour(time);
+  if (!t) return time;
+  return `${t.hour}:${String(t.minute).padStart(2, "0")} ${t.meridiem}`;
 }

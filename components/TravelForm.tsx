@@ -14,8 +14,11 @@ import {
   FOOD_PREFERENCES,
   GATEWAYS,
   MODES,
+  prettyTime,
   RETURN_DATES,
   STATUSES,
+  to12Hour,
+  to24Hour,
 } from "@/lib/event";
 import type { Participant } from "@/lib/types";
 import { EMPTY_PARTICIPANT } from "@/lib/types";
@@ -102,6 +105,94 @@ function Plain({
         ))}
       </select>
     </div>
+  );
+}
+
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+
+/**
+ * Hour / minute / AM–PM dropdowns rather than a native <input type="time">.
+ * That input follows the browser's locale, so a good part of the group got a
+ * 24-hour box and read 18:30 back as half past six in the morning. Three
+ * explicit dropdowns say AM or PM out loud on every phone and laptop. The
+ * value still posts as 24-hour "HH:MM", so sorting and the pickup slots are
+ * untouched.
+ */
+function TimeField({
+  name,
+  label,
+  value,
+}: {
+  name: string;
+  label: string;
+  value: string;
+}) {
+  const initial = to12Hour(value);
+  const [hour, setHour] = useState(initial ? String(initial.hour) : "");
+  const [minute, setMinute] = useState(
+    initial ? String(initial.minute).padStart(2, "0") : "00",
+  );
+  const [meridiem, setMeridiem] = useState<string>(initial?.meridiem ?? "");
+
+  // Someone's train gets in at 6:32. Keep an off-the-five minute they already
+  // saved as an option instead of silently rounding it on their next edit.
+  const minutes = MINUTES.includes(minute) ? MINUTES : [...MINUTES, minute].sort();
+
+  // Half-filled is treated as not given — an hour with no AM/PM is exactly the
+  // guess we're trying to stop making on someone's behalf.
+  const posted =
+    hour && meridiem ? to24Hour(Number(hour), Number(minute), meridiem) : "";
+
+  return (
+    <fieldset>
+      <legend className="label">{label}</legend>
+      <input type="hidden" name={name} value={posted} />
+      <div className="grid grid-cols-3 gap-2">
+        <select
+          aria-label={`${label} — hour`}
+          value={hour}
+          onChange={(e) => setHour(e.target.value)}
+          className="field"
+        >
+          <option value="">Hour</option>
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — minutes`}
+          value={minute}
+          onChange={(e) => setMinute(e.target.value)}
+          className="field"
+        >
+          {minutes.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — AM or PM`}
+          value={meridiem}
+          onChange={(e) => setMeridiem(e.target.value)}
+          className="field"
+        >
+          <option value="">AM/PM</option>
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+      <p className="mt-1.5 text-xs text-bone-dim">
+        {posted
+          ? `Saving ${prettyTime(posted)}`
+          : hour
+            ? "Pick AM or PM to save this time"
+            : "Leave it blank if you don't know yet"}
+      </p>
+    </fieldset>
   );
 }
 
@@ -282,18 +373,11 @@ export default function TravelForm({
             options={[...ARRIVAL_DATES]}
           />
 
-          <div>
-            <label className="label" htmlFor="arriveTime">
-              Arrival time
-            </label>
-            <input
-              id="arriveTime"
-              name="arriveTime"
-              type="time"
-              defaultValue={p.arriveTime}
-              className="field"
-            />
-          </div>
+          <TimeField
+            name="arriveTime"
+            label="Arrival time"
+            value={p.arriveTime}
+          />
 
           <Plain
             name="arriveGateway"
@@ -332,18 +416,11 @@ export default function TravelForm({
             options={[...RETURN_DATES]}
           />
 
-          <div>
-            <label className="label" htmlFor="returnTime">
-              Return time
-            </label>
-            <input
-              id="returnTime"
-              name="returnTime"
-              type="time"
-              defaultValue={p.returnTime}
-              className="field"
-            />
-          </div>
+          <TimeField
+            name="returnTime"
+            label="Return time"
+            value={p.returnTime}
+          />
 
           <Plain
             name="returnGateway"
