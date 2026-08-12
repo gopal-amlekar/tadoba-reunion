@@ -72,6 +72,11 @@ export default async function TravelPage({
                       {p.city || "City not given"}
                       {p.food && ` · ${p.food}`}
                     </div>
+                    {p.groupName && (
+                      <div className="mt-0.5 text-xs text-leaf">
+                        👥 {p.groupName}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <span

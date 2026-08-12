@@ -38,6 +38,14 @@ export default function AdminRow({
             {p.food && ` · ${p.food}`}
             {p.phone && ` · ${p.phone}`}
           </div>
+          {p.groupName && (
+            <Link
+              href="/groups"
+              className="mt-1 inline-block text-xs text-leaf hover:underline"
+            >
+              👥 {p.groupName}
+            </Link>
+          )}
           </div>
         </div>
         <span

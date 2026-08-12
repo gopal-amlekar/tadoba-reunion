@@ -45,6 +45,8 @@ function ensureSchema(): Promise<void> {
         city            TEXT DEFAULT '',
         phone           TEXT DEFAULT '',
         food            TEXT DEFAULT '',
+        group_id        TEXT DEFAULT '',
+        group_name      TEXT DEFAULT '',
         arrive_date     TEXT DEFAULT '',
         arrive_time     TEXT DEFAULT '',
         arrive_gateway  TEXT DEFAULT '',
@@ -69,6 +71,8 @@ function ensureSchema(): Promise<void> {
     `;
     // Added after the first deploy, so existing tables need it backfilled.
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS pre_night_stay TEXT DEFAULT ''`;
+    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_id TEXT DEFAULT ''`;
+    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''`;
     await sql`
       CREATE TABLE IF NOT EXISTS audit_log (
         id               SERIAL PRIMARY KEY,
@@ -95,6 +99,8 @@ function rowToParticipant(r: any): Participant {
     city: r.city ?? "",
     phone: r.phone ?? "",
     food: r.food ?? "",
+    groupId: r.group_id ?? "",
+    groupName: r.group_name ?? "",
     arriveDate: r.arrive_date ?? "",
     arriveTime: r.arrive_time ?? "",
     arriveGateway: r.arrive_gateway ?? "",
@@ -187,14 +193,14 @@ export async function saveParticipant(
     await ensureSchema();
     await sql`
       INSERT INTO participants (
-        id, name, city, phone, food,
+        id, name, city, phone, food, group_id, group_name,
         arrive_date, arrive_time, arrive_gateway, arrive_mode, arrive_details,
         return_date, return_time, return_gateway, return_mode, return_details,
         stay_preference, notes, stay_assigned, pre_night_stay, vehicle_group,
         admin_notes, status, created_at, updated_at, updated_by
       ) VALUES (
         ${record.id}, ${record.name}, ${record.city}, ${record.phone},
-        ${record.food},
+        ${record.food}, ${record.groupId}, ${record.groupName},
         ${record.arriveDate}, ${record.arriveTime}, ${record.arriveGateway},
         ${record.arriveMode}, ${record.arriveDetails},
         ${record.returnDate}, ${record.returnTime}, ${record.returnGateway},
@@ -207,6 +213,7 @@ export async function saveParticipant(
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name, city = EXCLUDED.city, phone = EXCLUDED.phone,
         food = EXCLUDED.food,
+        group_id = EXCLUDED.group_id, group_name = EXCLUDED.group_name,
         arrive_date = EXCLUDED.arrive_date, arrive_time = EXCLUDED.arrive_time,
         arrive_gateway = EXCLUDED.arrive_gateway, arrive_mode = EXCLUDED.arrive_mode,
         arrive_details = EXCLUDED.arrive_details,
@@ -292,6 +299,7 @@ const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
   city: "city",
   phone: "phone",
   food: "food preference",
+  groupName: "travel group",
   arriveDate: "arrival date",
   arriveTime: "arrival time",
   arriveGateway: "arrival gateway",

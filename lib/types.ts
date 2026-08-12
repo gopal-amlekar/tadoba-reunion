@@ -5,6 +5,14 @@ export type Participant = {
   phone: string;
   food: string;
 
+  /**
+   * People travelling together share a group. Stored as an id plus the name so
+   * renaming a group can never split it in two, the way a free-typed label
+   * would ("Amlekar family" vs "Amlekar Family").
+   */
+  groupId: string;
+  groupName: string;
+
   arriveDate: string;
   arriveTime: string;
   arriveGateway: string;
@@ -56,6 +64,8 @@ export const EMPTY_PARTICIPANT: Omit<Participant, "id" | "createdAt" | "updatedA
   city: "",
   phone: "",
   food: "Veg",
+  groupId: "",
+  groupName: "",
   arriveDate: "",
   arriveTime: "",
   arriveGateway: "",

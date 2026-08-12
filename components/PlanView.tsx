@@ -1,4 +1,5 @@
 import { MAIN_DAY, prettyDate, prettyTime } from "@/lib/event";
+import { asParties, listGroups } from "@/lib/groups";
 import {
   buildRuns,
   byStay,
@@ -62,6 +63,7 @@ function RunCard({
 
 export default function PlanView({ people }: { people: Participant[] }) {
   const t = totals(people);
+  const groups = listGroups(people.filter((p) => p.status !== "Cancelled"));
   const convoys = inboundConvoys(people);
   const late = lateArrivals(people);
   // Departures stay per-person: everyone leaves on their own train or flight.
@@ -90,6 +92,12 @@ export default function PlanView({ people }: { people: Participant[] }) {
       </section>
 
       <section className="mt-3 flex flex-wrap gap-2">
+        {groups.length > 0 && (
+          <span className="chip !border-leaf/40 !text-leaf">
+            {groups.length} {groups.length === 1 ? "group" : "groups"} travelling
+            together
+          </span>
+        )}
         {Object.entries(t.food).map(([k, v]) => (
           <span key={k} className="chip">
             {k}: {v}
@@ -160,24 +168,57 @@ export default function PlanView({ people }: { people: Participant[] }) {
                   </p>
                 )}
 
-                <ul className="mt-3 space-y-1 text-sm text-bone-dim">
-                  {c.people.map((p) => (
-                    <li key={p.id} className="flex justify-between gap-2">
-                      <span>{p.name}</span>
-                      <span className="shrink-0 text-xs">
-                        {p.arriveDate < MAIN_DAY ? (
-                          <span className="text-bone-dim/70">
-                            waiting since {prettyDate(p.arriveDate)}
+                <ul className="mt-3 space-y-1.5 text-sm text-bone-dim">
+                  {asParties(c.people).map((party) =>
+                    party.kind === "group" ? (
+                      <li
+                        key={party.id}
+                        className="rounded-lg border border-leaf/25 bg-leaf/5 px-2.5 py-1.5"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <span className="font-semibold text-leaf">
+                            {party.name}
                           </span>
-                        ) : (
-                          <>
-                            {prettyTime(p.arriveTime)}
-                            {p.arriveMode && ` · ${p.arriveMode}`}
-                          </>
-                        )}
-                      </span>
-                    </li>
-                  ))}
+                          <span className="shrink-0 text-xs text-leaf/80">
+                            {party.members.length} together
+                          </span>
+                        </div>
+                        {party.members.map((m) => (
+                          <div
+                            key={m.id}
+                            className="flex justify-between gap-2 text-xs"
+                          >
+                            <span>{m.name}</span>
+                            <span className="shrink-0">
+                              {m.arriveDate && m.arriveDate < MAIN_DAY
+                                ? `waiting since ${prettyDate(m.arriveDate)}`
+                                : prettyTime(m.arriveTime)}
+                            </span>
+                          </div>
+                        ))}
+                      </li>
+                    ) : (
+                      <li
+                        key={party.person.id}
+                        className="flex justify-between gap-2"
+                      >
+                        <span>{party.person.name}</span>
+                        <span className="shrink-0 text-xs">
+                          {party.person.arriveDate < MAIN_DAY ? (
+                            <span className="text-bone-dim/70">
+                              waiting since {prettyDate(party.person.arriveDate)}
+                            </span>
+                          ) : (
+                            <>
+                              {prettyTime(party.person.arriveTime)}
+                              {party.person.arriveMode &&
+                                ` · ${party.person.arriveMode}`}
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    ),
+                  )}
                 </ul>
               </div>
             ))}

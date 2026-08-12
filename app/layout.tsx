@@ -54,6 +54,12 @@ export default async function RootLayout({
                     Travel list
                   </Link>
                   <Link
+                    href="/groups"
+                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-leaf sm:px-3"
+                  >
+                    Groups
+                  </Link>
+                  <Link
                     href="/plan"
                     className="rounded-lg px-2 py-1.5 text-leaf transition hover:bg-jungle-800 sm:px-3"
                   >

@@ -10,6 +10,7 @@ const COLUMNS: Array<[string, (p: Participant) => string | number]> = [
   ["City", (p) => p.city],
   ["Phone", (p) => p.phone],
   ["Food", (p) => p.food],
+  ["Travelling with", (p) => p.groupName],
   ["Arrive date", (p) => p.arriveDate],
   ["Arrive time", (p) => p.arriveTime],
   ["Arrive gateway", (p) => p.arriveGateway],
