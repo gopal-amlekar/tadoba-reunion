@@ -49,6 +49,21 @@ export type Participant = {
   updatedBy: string;
 };
 
+/**
+ * A booked safari. Event-level rather than per-person: Mayuri books the gypsies
+ * and everyone reads the same reporting time.
+ */
+export type Safari = {
+  id: string;
+  /** One of SAFARI_SLOTS — which drive it is. */
+  slot: string;
+  /** Exact reporting time, "HH:MM". */
+  time: string;
+  /** Gate, meeting point, vehicle count — whatever people need to know. */
+  note: string;
+  createdAt: string;
+};
+
 export type AuditEntry = {
   id: number;
   participantId: string;

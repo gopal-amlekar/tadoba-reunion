@@ -2,7 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import type { AuditEntry, Participant } from "./types";
+import type { AuditEntry, Participant, Safari } from "./types";
 
 /**
  * Two storage backends, same API:
@@ -26,7 +26,11 @@ export const usingPostgres = Boolean(CONNECTION_STRING);
 
 const FILE_PATH = path.join(process.cwd(), ".data", "db.json");
 
-type FileShape = { participants: Participant[]; audit: AuditEntry[] };
+type FileShape = {
+  participants: Participant[];
+  audit: AuditEntry[];
+  safaris?: Safari[];
+};
 
 // ---------------------------------------------------------------- postgres --
 
@@ -73,6 +77,15 @@ function ensureSchema(): Promise<void> {
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS pre_night_stay TEXT DEFAULT ''`;
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_id TEXT DEFAULT ''`;
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS safaris (
+        id         TEXT PRIMARY KEY,
+        slot       TEXT NOT NULL,
+        time       TEXT DEFAULT '',
+        note       TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
     await sql`
       CREATE TABLE IF NOT EXISTS audit_log (
         id               SERIAL PRIMARY KEY,
@@ -290,6 +303,64 @@ export async function listAudit(limit = 100): Promise<AuditEntry[]> {
   }
   const data = await readFile();
   return [...data.audit].reverse().slice(0, limit);
+}
+
+// --------------------------------------------------------------- safaris ----
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToSafari(r: any): Safari {
+  return {
+    id: r.id,
+    slot: r.slot ?? "",
+    time: r.time ?? "",
+    note: r.note ?? "",
+    createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export async function listSafaris(): Promise<Safari[]> {
+  if (sql) {
+    await ensureSchema();
+    const rows = await sql`SELECT * FROM safaris ORDER BY slot ASC, time ASC`;
+    return rows.map(rowToSafari);
+  }
+  const data = await readFile();
+  return [...(data.safaris ?? [])].sort(
+    (a, b) => a.slot.localeCompare(b.slot) || a.time.localeCompare(b.time),
+  );
+}
+
+export async function saveSafari(s: Safari): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`
+      INSERT INTO safaris (id, slot, time, note, created_at)
+      VALUES (${s.id}, ${s.slot}, ${s.time}, ${s.note}, ${s.createdAt})
+      ON CONFLICT (id) DO UPDATE SET
+        slot = EXCLUDED.slot, time = EXCLUDED.time, note = EXCLUDED.note
+    `;
+    return;
+  }
+  const data = await readFile();
+  const list = data.safaris ?? [];
+  const idx = list.findIndex((x) => x.id === s.id);
+  if (idx >= 0) list[idx] = s;
+  else list.push(s);
+  await writeFile({ ...data, safaris: list });
+}
+
+export async function deleteSafari(id: string): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`DELETE FROM safaris WHERE id = ${id}`;
+    return;
+  }
+  const data = await readFile();
+  await writeFile({
+    ...data,
+    safaris: (data.safaris ?? []).filter((s) => s.id !== id),
+  });
 }
 
 // --------------------------------------------------------------- helpers ----

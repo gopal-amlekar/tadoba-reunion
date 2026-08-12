@@ -67,6 +67,29 @@ export const FOOD_PREFERENCES = ["Veg", "Non-veg"] as const;
 export const STATUSES = ["Confirmed", "Tentative", "Cancelled"] as const;
 
 /**
+ * Tadoba runs two safari slots a day and the reserve sets the windows, so the
+ * choice is which slot — the exact reporting time comes from the booking.
+ */
+export const SAFARI_SLOTS = [
+  {
+    value: "21-evening",
+    label: "Sat 21 Nov · evening safari",
+    short: "Sat 21 Nov, evening",
+    date: "2026-11-21",
+  },
+  {
+    value: "22-morning",
+    label: "Sun 22 Nov · morning safari",
+    short: "Sun 22 Nov, morning",
+    date: "2026-11-22",
+  },
+] as const;
+
+export function safariSlot(value: string) {
+  return SAFARI_SLOTS.find((s) => s.value === value);
+}
+
+/**
  * Time-of-day buckets used to group arrivals into pickup runs.
  * A vehicle is planned per bucket per gateway.
  */

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import PlanView from "@/components/PlanView";
 import { getRole } from "@/lib/auth";
-import { listParticipants } from "@/lib/db";
+import { listParticipants, listSafaris } from "@/lib/db";
 import { EVENT } from "@/lib/event";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export default async function PlanPage() {
   if (!(await getRole())) redirect("/unlock");
 
   const people = await listParticipants();
+  const safaris = await listSafaris();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -26,7 +27,7 @@ export default async function PlanPage() {
       </p>
 
       <div className="mt-8">
-        <PlanView people={people} />
+        <PlanView people={people} safaris={safaris} />
       </div>
     </div>
   );

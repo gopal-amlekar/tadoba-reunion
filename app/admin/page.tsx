@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import AdminRow from "@/components/AdminRow";
 import PlanView from "@/components/PlanView";
+import SafariEditor from "@/components/SafariEditor";
 import { getRole } from "@/lib/auth";
-import { listAudit, listParticipants, usingPostgres } from "@/lib/db";
+import { listAudit, listParticipants, listSafaris, usingPostgres } from "@/lib/db";
 import { EVENT, prettyStamp } from "@/lib/event";
 import { totals } from "@/lib/logistics";
 
@@ -13,6 +14,7 @@ export default async function AdminPage() {
   if ((await getRole()) !== "admin") redirect("/unlock");
 
   const people = await listParticipants();
+  const safaris = await listSafaris();
   const audit = await listAudit(40);
   const t = totals(people);
 
@@ -67,7 +69,11 @@ export default async function AdminPage() {
       )}
 
       <div className="mt-8">
-        <PlanView people={people} />
+        <SafariEditor safaris={safaris} />
+      </div>
+
+      <div className="mt-8">
+        <PlanView people={people} safaris={safaris} />
       </div>
 
       {/* ------------------------------------------------------- master -- */}

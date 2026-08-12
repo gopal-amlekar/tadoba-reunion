@@ -14,7 +14,8 @@ import {
   totals,
   type Run,
 } from "@/lib/logistics";
-import type { Participant } from "@/lib/types";
+import SafariBoard from "@/components/SafariBoard";
+import type { Participant, Safari } from "@/lib/types";
 
 /**
  * The plan itself — transfer legs, the night-halt board and room allocation.
@@ -61,7 +62,13 @@ function RunCard({
   );
 }
 
-export default function PlanView({ people }: { people: Participant[] }) {
+export default function PlanView({
+  people,
+  safaris,
+}: {
+  people: Participant[];
+  safaris: Safari[];
+}) {
   const t = totals(people);
   const groups = listGroups(people.filter((p) => p.status !== "Cancelled"));
   const convoys = inboundConvoys(people);
@@ -75,6 +82,11 @@ export default function PlanView({ people }: { people: Participant[] }) {
 
   return (
     <>
+      {/* The thing people will actually check on the day — so it leads. */}
+      <div className="mb-8">
+        <SafariBoard safaris={safaris} />
+      </div>
+
       {/* ------------------------------------------------------- totals -- */}
       <section className="grid gap-3 sm:grid-cols-3">
         {[

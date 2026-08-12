@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import TravelCard from "@/components/TravelCard";
 import { getRole, getWho } from "@/lib/auth";
-import { listParticipants } from "@/lib/db";
+import { listParticipants, listSafaris } from "@/lib/db";
+import { prettyTime, safariSlot } from "@/lib/event";
 import { listGroups, ungrouped } from "@/lib/groups";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function TravelPage({
   const byGroup = view === "groups";
   const who = await getWho();
   const everyone = await listParticipants();
+  const safaris = await listSafaris();
 
   const active = everyone.filter((p) => p.status !== "Cancelled");
   const groups = listGroups(active);
@@ -31,6 +33,24 @@ export default async function TravelPage({
         <div className="mb-6 rounded-xl border border-leaf/40 bg-leaf/10 px-4 py-3 text-leaf">
           Saved — {saved}&apos;s travel details are in. 🎉
         </div>
+      )}
+
+      {safaris.length > 0 && (
+        <Link
+          href="/plan"
+          className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-tiger/40 bg-tiger/5 px-4 py-3 text-sm transition hover:border-tiger"
+        >
+          <span className="font-semibold text-tiger">🐅 Safari</span>
+          {safaris.map((s) => (
+            <span key={s.id} className="text-bone-dim">
+              <span className="text-bone">
+                {safariSlot(s.slot)?.short ?? s.slot}
+              </span>{" "}
+              — report at{" "}
+              <strong className="text-bone">{prettyTime(s.time)}</strong>
+            </span>
+          ))}
+        </Link>
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-4">

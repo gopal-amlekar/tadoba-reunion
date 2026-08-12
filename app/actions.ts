@@ -13,9 +13,11 @@ import {
 } from "@/lib/auth";
 import {
   deleteParticipant,
+  deleteSafari,
   getParticipant,
   listParticipants,
   saveParticipant,
+  saveSafari,
 } from "@/lib/db";
 import { looksLikeMultipleNames } from "@/lib/groups";
 import { EMPTY_PARTICIPANT, type Participant } from "@/lib/types";
@@ -262,6 +264,39 @@ export async function disbandGroupAction(fd: FormData): Promise<void> {
   }
   revalidateAll();
   redirect("/groups");
+}
+
+// --------------------------------------------------------------- safaris ----
+
+/** Booking the gypsies is the organiser's job, so this is admin-only. */
+export async function addSafariAction(
+  _prev: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  if ((await getRole()) !== "admin") redirect("/unlock");
+
+  const slot = str(fd, "slot");
+  const time = str(fd, "time");
+  if (!slot) return { error: "Pick which safari this is." };
+  if (!time) return { error: "Add the reporting time." };
+
+  await saveSafari({
+    id: str(fd, "id") || randomUUID(),
+    slot,
+    time,
+    note: str(fd, "note"),
+    createdAt: new Date().toISOString(),
+  });
+
+  revalidateAll();
+  return { ok: true };
+}
+
+export async function removeSafariAction(fd: FormData): Promise<void> {
+  if ((await getRole()) !== "admin") redirect("/unlock");
+  const id = str(fd, "id");
+  if (id) await deleteSafari(id);
+  revalidateAll();
 }
 
 // ----------------------------------------------------------------- admin ----
