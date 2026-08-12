@@ -3,6 +3,7 @@ import { Baloo_2, Inter } from "next/font/google";
 import Link from "next/link";
 import { lockAction } from "@/app/actions";
 import JungleBackdrop from "@/components/JungleBackdrop";
+import NavLink from "@/components/NavLink";
 import { EVENT } from "@/lib/event";
 import { getRole } from "@/lib/auth";
 import "./globals.css";
@@ -47,34 +48,12 @@ export default async function RootLayout({
             <span className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
               {role && (
                 <>
-                  <Link
-                    href="/travel"
-                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-leaf sm:px-3"
-                  >
-                    Travel list
-                  </Link>
-                  <Link
-                    href="/groups"
-                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-leaf sm:px-3"
-                  >
-                    Groups
-                  </Link>
-                  <Link
-                    href="/plan"
-                    className="rounded-lg px-2 py-1.5 text-leaf transition hover:bg-jungle-800 sm:px-3"
-                  >
-                    The plan
-                  </Link>
+                  <NavLink href="/travel">Travel list</NavLink>
+                  <NavLink href="/groups">Groups</NavLink>
+                  <NavLink href="/plan">The plan</NavLink>
                 </>
               )}
-              {role === "admin" && (
-                <Link
-                  href="/admin"
-                  className="rounded-lg px-2 py-1.5 text-amber-glow transition hover:bg-jungle-800 sm:px-3"
-                >
-                  Organise
-                </Link>
-              )}
+              {role === "admin" && <NavLink href="/admin">Organise</NavLink>}
               {!role && (
                 <Link href="/unlock" className="btn-primary !px-4 !py-1.5 text-sm">
                   Enter details

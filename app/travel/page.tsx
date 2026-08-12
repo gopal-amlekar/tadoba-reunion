@@ -1,23 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import AnimalAvatar from "@/components/AnimalAvatar";
+import TravelCard from "@/components/TravelCard";
 import { getRole, getWho } from "@/lib/auth";
 import { listParticipants } from "@/lib/db";
-import { prettyDate, prettyTime } from "@/lib/event";
+import { listGroups, ungrouped } from "@/lib/groups";
 
 export const dynamic = "force-dynamic";
 
 export default async function TravelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; view?: string }>;
 }) {
   const role = await getRole();
   if (!role) redirect("/unlock");
 
-  const { saved } = await searchParams;
+  const { saved, view } = await searchParams;
+  const byGroup = view === "groups";
   const who = await getWho();
   const everyone = await listParticipants();
+
+  const active = everyone.filter((p) => p.status !== "Cancelled");
+  const groups = listGroups(active);
+  const alone = ungrouped(active);
+  const cancelled = everyone.filter((p) => p.status === "Cancelled");
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -44,6 +50,32 @@ export default async function TravelPage({
         </Link>
       </div>
 
+      {/* --------------------------------------------------- view switch -- */}
+      {everyone.length > 0 && (
+        <div className="mt-6 inline-flex rounded-xl border border-jungle-700 bg-jungle-900/60 p-1">
+          <Link
+            href="/travel"
+            className={`rounded-lg px-4 py-1.5 text-sm transition ${
+              byGroup
+                ? "text-bone-dim hover:text-leaf"
+                : "bg-jungle-800 font-semibold text-tiger"
+            }`}
+          >
+            Everyone
+          </Link>
+          <Link
+            href="/travel?view=groups"
+            className={`rounded-lg px-4 py-1.5 text-sm transition ${
+              byGroup
+                ? "bg-jungle-800 font-semibold text-tiger"
+                : "text-bone-dim hover:text-leaf"
+            }`}
+          >
+            By group{groups.length > 0 && ` (${groups.length})`}
+          </Link>
+        </div>
+      )}
+
       {everyone.length === 0 ? (
         <div className="card mt-8 p-8 text-center">
           <p className="text-bone-dim">
@@ -53,97 +85,77 @@ export default async function TravelPage({
             Add the first entry
           </Link>
         </div>
-      ) : (
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {everyone.map((p) => (
-            <Link
-              key={p.id}
-              href={`/travel/${p.id}`}
-              className="card block p-5 transition hover:border-tiger/60"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <AnimalAvatar name={p.name} size={52} />
-                  <div>
-                    <div className="font-display text-xl font-bold text-bone">
-                      {p.name}
-                    </div>
-                    <div className="text-sm text-bone-dim">
-                      {p.city || "City not given"}
-                      {p.food && ` · ${p.food}`}
-                    </div>
-                    {p.groupName && (
-                      <div className="mt-0.5 text-xs text-leaf">
-                        👥 {p.groupName}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`chip ${
-                    p.status === "Cancelled"
-                      ? "!border-bone-dim/40 !text-bone-dim line-through"
-                      : p.status === "Tentative"
-                        ? "!border-amber-glow/40 !text-amber-glow"
-                        : "!border-leaf/40 !text-leaf"
-                  }`}
-                >
-                  {p.status || "Confirmed"}
+      ) : byGroup ? (
+        /* ------------------------------------------------ grouped view -- */
+        <div className="mt-8 space-y-10">
+          {groups.length === 0 && (
+            <div className="card p-6 text-bone-dim">
+              Nobody is grouped yet.{" "}
+              <Link href="/groups" className="text-tiger underline">
+                Put people who travel together into a group
+              </Link>{" "}
+              and they&apos;ll show up here as one party.
+            </div>
+          )}
+
+          {groups.map((g) => (
+            <section key={g.id}>
+              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-jungle-800 pb-2">
+                <h2 className="font-display text-2xl font-bold text-leaf">
+                  👥 {g.name}
+                </h2>
+                <span className="text-sm text-bone-dim">
+                  {g.members.length}{" "}
+                  {g.members.length === 1 ? "person" : "people"} ·{" "}
+                  <Link href="/groups" className="text-tiger hover:underline">
+                    edit group
+                  </Link>
                 </span>
               </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg border border-jungle-800 bg-jungle-950/50 p-3">
-                  <div className="text-[10px] font-semibold tracking-wider text-leaf uppercase">
-                    Arriving
-                  </div>
-                  <div className="mt-1 text-bone">
-                    {prettyDate(p.arriveDate)}
-                  </div>
-                  <div className="text-bone-dim">
-                    {prettyTime(p.arriveTime)}
-                    {p.arriveGateway && ` · ${p.arriveGateway}`}
-                  </div>
-                  {p.arriveMode && (
-                    <div className="mt-1 text-xs text-bone-dim">
-                      {p.arriveMode}
-                      {p.arriveDetails && ` · ${p.arriveDetails}`}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-jungle-800 bg-jungle-950/50 p-3">
-                  <div className="text-[10px] font-semibold tracking-wider text-tiger uppercase">
-                    Returning
-                  </div>
-                  <div className="mt-1 text-bone">
-                    {prettyDate(p.returnDate)}
-                  </div>
-                  <div className="text-bone-dim">
-                    {prettyTime(p.returnTime)}
-                    {p.returnGateway && ` · ${p.returnGateway}`}
-                  </div>
-                  {p.returnMode && (
-                    <div className="mt-1 text-xs text-bone-dim">
-                      {p.returnMode}
-                      {p.returnDetails && ` · ${p.returnDetails}`}
-                    </div>
-                  )}
-                </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {g.members.map((p) => (
+                  <TravelCard key={p.id} p={p} showGroup={false} />
+                ))}
               </div>
+            </section>
+          ))}
 
-              {(p.stayAssigned || p.stayPreference) && (
-                <p className="mt-3 text-xs text-bone-dim">
-                  <span className="text-amber-glow">Stay:</span>{" "}
-                  {p.stayAssigned || `${p.stayPreference} (suggested)`}
-                </p>
-              )}
-              {p.notes && (
-                <p className="mt-2 line-clamp-2 text-xs text-bone-dim italic">
-                  “{p.notes}”
-                </p>
-              )}
-            </Link>
+          {alone.length > 0 && (
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-jungle-800 pb-2">
+                <h2 className="font-display text-2xl font-bold text-bone-dim">
+                  Travelling on their own
+                </h2>
+                <span className="text-sm text-bone-dim">
+                  {alone.length} {alone.length === 1 ? "person" : "people"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {alone.map((p) => (
+                  <TravelCard key={p.id} p={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {cancelled.length > 0 && (
+            <section>
+              <h2 className="border-b border-jungle-800 pb-2 font-display text-2xl font-bold text-bone-dim">
+                Cancelled
+              </h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {cancelled.map((p) => (
+                  <TravelCard key={p.id} p={p} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      ) : (
+        /* --------------------------------------------------- flat view -- */
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          {everyone.map((p) => (
+            <TravelCard key={p.id} p={p} />
           ))}
         </div>
       )}
