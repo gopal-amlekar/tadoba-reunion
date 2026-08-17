@@ -14,8 +14,8 @@ the 22nd.
 | --- | --- | --- |
 | `/` | Everyone | The hero, countdown, headline numbers. Names stay hidden until you enter the password. |
 | `/unlock` | Everyone | One shared group password. Mayuri has a second one that switches on the editing controls. |
-| `/itinerary` | The group | Safari reporting times and the day-by-day programme. Mayuri edits it here, in place. |
-| `/money` | The group | What each segment costs, everyone's share, what's been paid, what's left. Mayuri edits the rates and the receipts here, in place. |
+| `/itinerary` | The group | The day-by-day programme, with an estimated cost per entry. Mayuri edits it here, in place. |
+| `/money` | The group | Every bill, everyone's share, what's been paid, what's left. Mayuri edits the totals, who splits them, and the receipts here, in place. |
 | `/travel` | The group | Every travel entry as a card. Anyone can open anyone's and fix it. |
 | `/travel/new` | The group | The form: arrival and return date, time, gateway, mode, train/flight number, food, stay preference, notes. |
 | `/groups` | The group | Put people who travel together into one party. |
@@ -23,34 +23,50 @@ the 22nd.
 
 ### The programme
 
-Each line is a day, a time, a title and an optional detail. Ordering is derived
-from date and time rather than stored, so moving something an hour later is just
-editing its time — there is no separate ordering to keep in sync.
+Each line is a day, a time, a title, an optional detail and an optional
+estimated cost. Ordering is derived from date and time rather than stored, so
+moving something an hour later is just editing its time — there is no separate
+ordering to keep in sync.
+
+Safaris are ordinary entries. They used to have a dedicated slot-based booking
+panel and a reporting-times board; a drive is a time and a place, which is what
+an entry already is, so the special case earned nothing.
 
 ### The money
 
-Costs are entered as a **rate per person**, not as a lump sum, because that's
-what Mayuri is actually quoted — a gypsy seat, a room share, a bus seat. Each
-one either applies to everybody or to a ticked list of people.
+Every cost is **one whole bill, divided between the people it applies to** —
+either everybody or a ticked list. A cost typed against a programme entry lives
+in the same table as the rest, linked by `itineraryId`, so there is exactly one
+place a bill is stored and the two pages cannot disagree. Costs with no entry
+behind them are the extras: tips, water, a cake.
 
-| What for | Per person | Who pays | Comes to |
+| What for | Whole bill | Split between | Works out at |
 | --- | --- | --- | --- |
-| Resort, 2 nights | ₹4,500 | Everyone · 26 | ₹1,17,000 |
-| Safari seat | ₹1,800 | 18 people | ₹32,400 |
-| Nagpur transfer | ₹1,200 | 14 people | ₹16,800 |
+| Check in at the resort | ₹27,000 | Everyone · 6 | ₹4,500 each |
+| Evening safari | ₹7,200 | 4 people | ₹1,800 each |
+| Tips, water and snacks | ₹5,200 | Everyone · 6 | ₹867 each |
 
-A person's share is then a plain sum of the rates that apply to them — no
-division and no rounding, and nobody's number moves because somebody else joined
-late or dropped out. Mayuri records one running total received per person plus a
-free-text note ("UPI 12 Oct ₹3000 + cash ₹1500"), and the balance falls out.
-Everyone can see everyone's balance; that's the point.
+Mayuri records one running total received per person plus a free-text note
+("UPI 12 Oct ₹3000 + cash ₹1500"), and the balance falls out. Everyone can see
+everyone's balance; that's the point.
 
-Two things worth knowing:
+Four things worth knowing, all of them in [`lib/money.ts`](lib/money.ts):
 
+- **A bill rarely divides cleanly, so the split is allocated rather than
+  rounded.** ₹5,200 between 6 is ₹866.67, and six × ₹867 is ₹5,202 — round every
+  share the same way and the column stops adding up. So the remainder goes out a
+  rupee at a time: four people pay ₹867, two pay ₹866, total exactly ₹5,200.
+  Who absorbs the extra rupee is decided by participant id — arbitrary, but
+  stable, so shares don't jump between page loads.
+- **A share moves when the group does.** This is the cost of dividing rather
+  than quoting per head: one late joiner re-divides every cost they're part of.
 - **"Everyone" is stored as a flag**, not as today's list of ids, so anyone who
-  joins later is charged for it automatically rather than slipping through.
+  joins later is charged automatically rather than slipping through.
 - **Outstanding is the sum of what people still owe**, not `expected − received`
-  — one person overpaying must not hide another's shortfall.
+  — one person overpaying must not hide another's shortfall. Likewise `expected`
+  counts only bills that have somebody to pay them, so it always equals the sum
+  of everyone's shares; a bill charged to nobody is reported separately as
+  unallocated instead of quietly vanishing.
 
 ### Also on the organiser's desk
 
@@ -74,7 +90,7 @@ Open <http://localhost:3000>. With no `DATABASE_URL` set it stores everything in
 Want it to look alive while you poke around?
 
 ```bash
-node scripts/seed-demo.mjs   # six made-up friends, a programme and three costs
+node scripts/seed-demo.mjs   # six made-up friends, a programme and four costs
 ```
 
 Delete the `.data` folder to clear them again.
@@ -130,10 +146,10 @@ you're live.
 ## Changing the details
 
 Almost everything lives in [`lib/event.ts`](lib/event.ts) — dates, cities,
-gateways, travel modes, food options, the safari slots and the days the
-programme can have entries on. Edit that one file and the whole site follows.
+gateways, travel modes, food options and the days the programme can have
+entries on. Edit that one file and the whole site follows.
 The money arithmetic is all in [`lib/money.ts`](lib/money.ts), and it's pure —
-nothing is stored except the rates, who they apply to and what's come in.
+nothing is stored except each bill, who it applies to and what's come in.
 
 ---
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { removeCostAction, saveCostAction, type FormState } from "@/app/actions";
 import { formatMoney } from "@/lib/event";
@@ -7,10 +8,12 @@ import { costHeads, payers } from "@/lib/money";
 import type { CostItem, Participant } from "@/lib/types";
 
 /**
- * What the trip costs, broken into the pieces Mayuri is actually quoted for.
- * Each one is a rate per person and either applies to everybody or to a
- * ticked list — so "the safari is only for the eighteen who booked" needs no
- * arithmetic from her, and nobody's share moves when somebody else joins.
+ * What the trip costs. Each line is one whole bill, divided between the people
+ * it applies to — so "the safari is only for the eighteen who booked" needs no
+ * arithmetic from Mayuri, just a ticked list.
+ *
+ * Lines tied to a programme entry get their name and their total from it. The
+ * rest are the extras that belong to no particular event: tips, water, a cake.
  */
 
 const initial: FormState = {};
@@ -27,6 +30,7 @@ function CostForm({
   const [state, action, pending] = useActionState(saveCostAction, initial);
   const [everyone, setEveryone] = useState(item ? item.appliesToAll : true);
   const form = useRef<HTMLFormElement>(null);
+  const fromProgramme = Boolean(item?.itineraryId);
 
   useEffect(() => {
     if (!state.ok) return;
@@ -44,20 +48,30 @@ function CostForm({
       <div className="grid gap-3 sm:grid-cols-[1.6fr_0.9fr_1.8fr]">
         <div>
           <label className="label">What for</label>
-          <input
-            name="label"
-            defaultValue={item?.label ?? ""}
-            placeholder="Safari seat"
-            className="field !py-2 text-sm"
-          />
+          {fromProgramme ? (
+            <>
+              {/* Named after its programme entry, so renaming happens there. */}
+              <input type="hidden" name="label" value={item!.label} />
+              <p className="py-2 text-sm font-semibold text-bone">
+                {item!.label}
+              </p>
+            </>
+          ) : (
+            <input
+              name="label"
+              defaultValue={item?.label ?? ""}
+              placeholder="Tips, water, snacks"
+              className="field !py-2 text-sm"
+            />
+          )}
         </div>
         <div>
-          <label className="label">₹ per person</label>
+          <label className="label">Total — whole group</label>
           <input
-            name="amount"
+            name="total"
             inputMode="decimal"
-            defaultValue={item?.amount ? String(item.amount) : ""}
-            placeholder="1800"
+            defaultValue={item?.total ? String(item.total) : ""}
+            placeholder="8000"
             className="field !py-2 text-sm"
           />
         </div>
@@ -66,14 +80,14 @@ function CostForm({
           <input
             name="note"
             defaultValue={item?.note ?? ""}
-            placeholder="4 gypsies, 6 seats each"
+            placeholder="Guides, gate staff, a crate of water"
             className="field !py-2 text-sm"
           />
         </div>
       </div>
 
       <fieldset>
-        <legend className="label">Who pays for it</legend>
+        <legend className="label">Who splits it</legend>
         <div className="flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2">
             <input
@@ -156,6 +170,7 @@ function CostRow({
 }) {
   const [editing, setEditing] = useState(false);
   const heads = costHeads(item, people);
+  const each = heads > 0 ? Math.round(item.total / heads) : 0;
 
   if (editing) {
     return (
@@ -169,14 +184,18 @@ function CostRow({
     );
   }
 
-  const who = item.appliesToAll
-    ? `Everyone · ${heads} ${heads === 1 ? "person" : "people"}`
-    : `${heads} ${heads === 1 ? "person" : "people"}`;
-
   return (
     <li className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-jungle-800 px-4 py-3 sm:grid-cols-[2fr_1fr_1fr_1fr]">
       <div className="col-span-2 sm:col-span-1">
         <span className="font-semibold text-bone">{item.label}</span>
+        {item.itineraryId && (
+          <Link
+            href="/itinerary"
+            className="ml-2 text-xs text-leaf/80 hover:underline"
+          >
+            from the programme
+          </Link>
+        )}
         {item.note && (
           <span className="block text-xs text-bone-dim">{item.note}</span>
         )}
@@ -202,21 +221,35 @@ function CostRow({
         )}
       </div>
 
-      <div className="font-display font-bold text-tiger sm:text-right">
-        {formatMoney(item.amount)}
-        <span className="text-xs font-normal text-bone-dim"> /head</span>
+      <div className="font-display font-bold text-bone sm:text-right">
+        {formatMoney(item.total)}
       </div>
 
       <div
         className={`text-sm sm:text-right ${
-          item.appliesToAll ? "text-bone-dim" : "text-leaf"
+          heads === 0
+            ? "text-tiger"
+            : item.appliesToAll
+              ? "text-bone-dim"
+              : "text-leaf"
         }`}
       >
-        {who}
+        {heads === 0
+          ? "nobody yet"
+          : item.appliesToAll
+            ? `Everyone · ${heads}`
+            : `${heads} ${heads === 1 ? "person" : "people"}`}
       </div>
 
-      <div className="text-sm text-bone-dim sm:text-right">
-        {formatMoney(item.amount * heads)}
+      <div className="text-sm sm:text-right">
+        {heads === 0 ? (
+          <span className="text-bone-dim">—</span>
+        ) : (
+          <>
+            <span className="text-tiger">{formatMoney(each)}</span>
+            <span className="text-xs text-bone-dim"> each</span>
+          </>
+        )}
       </div>
     </li>
   );
@@ -233,27 +266,33 @@ export default function CostBoard({
 }) {
   // Cancelled people can't be charged, so they're not offered as payers either.
   const attending = payers(people);
-  const grandTotal = costs.reduce(
-    (sum, c) => sum + c.amount * costHeads(c, people),
-    0,
-  );
+  const grandTotal = costs.reduce((sum, c) => sum + c.total, 0);
 
   return (
     <div>
       {costs.length === 0 ? (
         <div className="card border-dashed p-8 text-center text-bone-dim">
           No costs entered yet.
-          {canEdit
-            ? " Add the first one below and everyone's share appears straight away."
-            : " Mayuri will put the numbers up once the bookings are firm."}
+          {canEdit ? (
+            <>
+              {" "}
+              Put an estimate on a{" "}
+              <Link href="/itinerary" className="text-tiger underline">
+                programme entry
+              </Link>
+              , or add an extra below.
+            </>
+          ) : (
+            " Mayuri will put the numbers up once the bookings are firm."
+          )}
         </div>
       ) : (
         <div className="card overflow-hidden">
           <div className="hidden px-4 pt-3 pb-1 text-xs font-semibold tracking-wider text-leaf/70 uppercase sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr] sm:gap-x-4">
             <span>What for</span>
-            <span className="text-right">Per person</span>
-            <span className="text-right">Who pays</span>
-            <span className="text-right">Comes to</span>
+            <span className="text-right">Whole bill</span>
+            <span className="text-right">Split between</span>
+            <span className="text-right">Works out at</span>
           </div>
           <ul>
             {costs.map((c) => (
@@ -272,11 +311,15 @@ export default function CostBoard({
       {canEdit && (
         <div className="no-print card mt-6 p-5">
           <h3 className="font-display text-lg font-bold text-bone">
-            ✎ Add a cost
+            ✎ Add an extra
           </h3>
           <p className="mt-1 mb-4 text-sm text-bone-dim">
-            Enter it as the rate for one person. Everyone&apos;s contribution
-            below updates the moment you save.
+            For the things that belong to no particular event — tips, water,
+            snacks for the drive, a cake. Anything tied to something on the{" "}
+            <Link href="/itinerary" className="text-tiger underline">
+              programme
+            </Link>{" "}
+            is better added there, so the two stay together.
           </p>
           <CostForm people={attending} />
         </div>

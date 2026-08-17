@@ -2,13 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import type {
-  AuditEntry,
-  CostItem,
-  ItineraryItem,
-  Participant,
-  Safari,
-} from "./types";
+import type { AuditEntry, CostItem, ItineraryItem, Participant } from "./types";
 
 /**
  * Two storage backends, same API:
@@ -35,7 +29,6 @@ const FILE_PATH = path.join(process.cwd(), ".data", "db.json");
 type FileShape = {
   participants: Participant[];
   audit: AuditEntry[];
-  safaris?: Safari[];
   itinerary?: ItineraryItem[];
   costs?: CostItem[];
 };
@@ -88,15 +81,6 @@ function ensureSchema(): Promise<void> {
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS paid NUMERIC DEFAULT 0`;
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS paid_note TEXT DEFAULT ''`;
     await sql`
-      CREATE TABLE IF NOT EXISTS safaris (
-        id         TEXT PRIMARY KEY,
-        slot       TEXT NOT NULL,
-        time       TEXT DEFAULT '',
-        note       TEXT DEFAULT '',
-        created_at TIMESTAMPTZ DEFAULT now()
-      )
-    `;
-    await sql`
       CREATE TABLE IF NOT EXISTS itinerary (
         id         TEXT PRIMARY KEY,
         date       TEXT DEFAULT '',
@@ -110,15 +94,20 @@ function ensureSchema(): Promise<void> {
       CREATE TABLE IF NOT EXISTS costs (
         id             TEXT PRIMARY KEY,
         label          TEXT DEFAULT '',
+        -- The whole bill, not a per-head rate. Still named amount from when it
+        -- was the latter; the column is kept so no data has to move.
         amount         NUMERIC DEFAULT 0,
         note           TEXT DEFAULT '',
         applies_to_all BOOLEAN DEFAULT true,
         -- Participant ids, comma separated. They're UUIDs, so there is nothing
         -- to escape, and a join table would be three queries for one small list.
         member_ids     TEXT DEFAULT '',
+        -- The programme entry this belongs to, if any.
+        itinerary_id   TEXT DEFAULT '',
         created_at     TIMESTAMPTZ DEFAULT now()
       )
     `;
+    await sql`ALTER TABLE costs ADD COLUMN IF NOT EXISTS itinerary_id TEXT DEFAULT ''`;
     await sql`
       CREATE TABLE IF NOT EXISTS audit_log (
         id               SERIAL PRIMARY KEY,
@@ -336,64 +325,6 @@ export async function listAudit(limit = 100): Promise<AuditEntry[]> {
   return [...data.audit].reverse().slice(0, limit);
 }
 
-// --------------------------------------------------------------- safaris ----
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function rowToSafari(r: any): Safari {
-  return {
-    id: r.id,
-    slot: r.slot ?? "",
-    time: r.time ?? "",
-    note: r.note ?? "",
-    createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
-  };
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
-export async function listSafaris(): Promise<Safari[]> {
-  if (sql) {
-    await ensureSchema();
-    const rows = await sql`SELECT * FROM safaris ORDER BY slot ASC, time ASC`;
-    return rows.map(rowToSafari);
-  }
-  const data = await readFile();
-  return [...(data.safaris ?? [])].sort(
-    (a, b) => a.slot.localeCompare(b.slot) || a.time.localeCompare(b.time),
-  );
-}
-
-export async function saveSafari(s: Safari): Promise<void> {
-  if (sql) {
-    await ensureSchema();
-    await sql`
-      INSERT INTO safaris (id, slot, time, note, created_at)
-      VALUES (${s.id}, ${s.slot}, ${s.time}, ${s.note}, ${s.createdAt})
-      ON CONFLICT (id) DO UPDATE SET
-        slot = EXCLUDED.slot, time = EXCLUDED.time, note = EXCLUDED.note
-    `;
-    return;
-  }
-  const data = await readFile();
-  const list = data.safaris ?? [];
-  const idx = list.findIndex((x) => x.id === s.id);
-  if (idx >= 0) list[idx] = s;
-  else list.push(s);
-  await writeFile({ ...data, safaris: list });
-}
-
-export async function deleteSafari(id: string): Promise<void> {
-  if (sql) {
-    await ensureSchema();
-    await sql`DELETE FROM safaris WHERE id = ${id}`;
-    return;
-  }
-  const data = await readFile();
-  await writeFile({
-    ...data,
-    safaris: (data.safaris ?? []).filter((s) => s.id !== id),
-  });
-}
-
 // ------------------------------------------------------------- itinerary ----
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -470,10 +401,11 @@ function rowToCost(r: any): CostItem {
   return {
     id: r.id,
     label: r.label ?? "",
-    amount: Number(r.amount ?? 0) || 0,
+    total: Number(r.amount ?? 0) || 0,
     note: r.note ?? "",
     appliesToAll: r.applies_to_all !== false,
     memberIds: String(r.member_ids ?? "").split(",").filter(Boolean),
+    itineraryId: r.itinerary_id ?? "",
     createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
   };
 }
@@ -496,13 +428,16 @@ export async function saveCost(item: CostItem): Promise<void> {
   if (sql) {
     await ensureSchema();
     await sql`
-      INSERT INTO costs (id, label, amount, note, applies_to_all, member_ids, created_at)
-      VALUES (${item.id}, ${item.label}, ${item.amount}, ${item.note},
-              ${item.appliesToAll}, ${item.memberIds.join(",")}, ${item.createdAt})
+      INSERT INTO costs (id, label, amount, note, applies_to_all, member_ids,
+                         itinerary_id, created_at)
+      VALUES (${item.id}, ${item.label}, ${item.total}, ${item.note},
+              ${item.appliesToAll}, ${item.memberIds.join(",")},
+              ${item.itineraryId}, ${item.createdAt})
       ON CONFLICT (id) DO UPDATE SET
         label = EXCLUDED.label, amount = EXCLUDED.amount, note = EXCLUDED.note,
         applies_to_all = EXCLUDED.applies_to_all,
-        member_ids = EXCLUDED.member_ids
+        member_ids = EXCLUDED.member_ids,
+        itinerary_id = EXCLUDED.itinerary_id
     `;
     return;
   }

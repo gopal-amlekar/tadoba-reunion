@@ -51,7 +51,7 @@ export default async function MoneyPage() {
       <p className="mt-1 text-bone-dim">
         What the trip costs, split by what each of us is actually booked on.{" "}
         {canEdit
-          ? "Set the rates and mark off what's come in — everyone sees it as you save."
+          ? "Set the totals and mark off what's come in — everyone sees it as you save."
           : `Pay ${EVENT.organiser} and she'll tick you off here.`}
       </p>
 
@@ -73,13 +73,22 @@ export default async function MoneyPage() {
         </p>
       )}
 
+      {summary.unallocated > 0 && (
+        <p className="mt-3 rounded-xl border border-tiger/40 bg-tiger/10 px-4 py-2.5 text-sm text-tiger">
+          {formatMoney(summary.unallocated)} is charged to nobody, so it
+          isn&apos;t in anyone&apos;s share and isn&apos;t counted above. Tick
+          who splits it in the table below.
+        </p>
+      )}
+
       <section className="mt-12">
         <h2 className="font-display text-2xl font-bold text-leaf">
           💰 What it costs
         </h2>
         <p className="mt-1 mb-4 text-sm text-bone-dim">
-          Every line is the rate for one person. Some things everyone shares;
-          some are only for whoever booked them.
+          Every line is one whole bill, divided between the people it applies to.
+          Because it&apos;s a division, a share moves when the group does — one
+          late joiner re-divides everything they&apos;re part of.
         </p>
         <CostBoard costs={costs} people={people} canEdit={canEdit} />
       </section>

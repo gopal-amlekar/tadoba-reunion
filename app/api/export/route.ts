@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRole } from "@/lib/auth";
 import { listCosts, listParticipants } from "@/lib/db";
-import { ledgerFor } from "@/lib/money";
+import { ledger } from "@/lib/money";
 import { type CostItem, type Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -30,17 +30,22 @@ const COLUMNS: Array<[string, (p: Participant) => string | number]> = [
 ];
 
 /**
- * The money columns need the cost list, so they're built per export rather
- * than living in the static table above. Plain numbers, no ₹ — this file gets
- * opened in a spreadsheet and totalled.
+ * The money columns need every cost and the whole group — a bill is divided
+ * between its payers, so one person's share can't be worked out alone. The
+ * ledger is therefore built once and looked up per row. Plain numbers, no ₹:
+ * this file gets opened in a spreadsheet and totalled.
  */
 function moneyColumns(
+  people: Participant[],
   costs: CostItem[],
 ): Array<[string, (p: Participant) => string | number]> {
+  const books = new Map(
+    ledger(people, costs).map((b) => [b.person.id, b] as const),
+  );
   return [
-    ["Share", (p) => ledgerFor(p, costs).share],
+    ["Share", (p) => books.get(p.id)?.share ?? 0],
     ["Received", (p) => p.paid || 0],
-    ["Balance", (p) => ledgerFor(p, costs).balance],
+    ["Balance", (p) => books.get(p.id)?.balance ?? -(p.paid || 0)],
     ["Payment note", (p) => p.paidNote],
   ];
 }
@@ -61,7 +66,7 @@ export async function GET() {
   }
 
   const people = await listParticipants();
-  const columns = [...COLUMNS, ...moneyColumns(await listCosts())];
+  const columns = [...COLUMNS, ...moneyColumns(people, await listCosts())];
   const rows = [
     columns.map(([header]) => cell(header)).join(","),
     ...people.map((p) => columns.map(([, get]) => cell(get(p))).join(",")),

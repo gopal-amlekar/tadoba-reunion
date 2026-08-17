@@ -96,23 +96,39 @@ const itinerary = [
   createdAt: `2026-08-05T09:0${i}:00.000Z`,
 }));
 
+/**
+ * Every total is for the whole group, to be divided — not a per-head rate.
+ * Three are tied to programme entries (so they show on both pages and keep
+ * their names in step); the last is a standalone extra.
+ */
 const costs = [
   {
-    id: "demo-cost-1", label: "Resort, 2 nights", amount: 4500,
-    note: "Twin sharing, all meals", appliesToAll: true, memberIds: [],
+    id: "demo-cost-1", label: "Check in at the resort", total: 27000,
+    note: "2 nights, twin sharing, all meals",
+    appliesToAll: true, memberIds: [], itineraryId: "demo-itin-3",
     createdAt: "2026-08-06T09:00:00.000Z",
   },
   {
-    id: "demo-cost-2", label: "Safari seat", amount: 1800,
-    note: "2 drives, 4 gypsies at 6 seats each",
+    id: "demo-cost-2", label: "Evening safari", total: 7200,
+    note: "4 gypsies, 6 seats each",
     appliesToAll: false, memberIds: ["demo-1", "demo-2", "demo-3", "demo-5"],
+    itineraryId: "demo-itin-4",
     createdAt: "2026-08-06T09:01:00.000Z",
   },
   {
-    id: "demo-cost-3", label: "Nagpur transfer", amount: 1200,
+    id: "demo-cost-3", label: "Convoy leaves Nagpur", total: 3600,
     note: "Tempo Traveller both ways",
     appliesToAll: false, memberIds: ["demo-1", "demo-2", "demo-5"],
+    itineraryId: "demo-itin-2",
     createdAt: "2026-08-06T09:02:00.000Z",
+  },
+  {
+    // Divides as 6 × ₹308 + ... — deliberately not a round number, so the
+    // remainder handling is visible the moment you open the page.
+    id: "demo-cost-4", label: "Tips, water and snacks", total: 5200,
+    note: "Guides, gate staff, a crate of water",
+    appliesToAll: true, memberIds: [], itineraryId: "",
+    createdAt: "2026-08-06T09:03:00.000Z",
   },
 ];
 

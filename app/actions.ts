@@ -15,7 +15,6 @@ import {
   deleteCost,
   deleteItineraryItem,
   deleteParticipant,
-  deleteSafari,
   getParticipant,
   listCosts,
   listItinerary,
@@ -23,7 +22,6 @@ import {
   saveCost,
   saveItineraryItem,
   saveParticipant,
-  saveSafari,
 } from "@/lib/db";
 import { looksLikeMultipleNames } from "@/lib/groups";
 import { EMPTY_PARTICIPANT, type Participant } from "@/lib/types";
@@ -38,6 +36,14 @@ function str(fd: FormData, key: string): string {
 function money(fd: FormData, key: string): number {
   const n = Number(str(fd, key).replace(/[₹,\s]/g, ""));
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+}
+
+/**
+ * Whole rupees, for a bill that has to be divided. Paise here would make every
+ * share a fraction of a paisa and nobody in this group is settling up in coins.
+ */
+function rupees(fd: FormData, key: string): number {
+  return Math.round(money(fd, key));
 }
 
 /** A dropdown with an "Other" escape hatch: use the free-text box when picked. */
@@ -276,42 +282,16 @@ export async function disbandGroupAction(fd: FormData): Promise<void> {
   redirect("/groups");
 }
 
-// --------------------------------------------------------------- safaris ----
-
-/** Booking the gypsies is the organiser's job, so this is admin-only. */
-export async function addSafariAction(
-  _prev: FormState,
-  fd: FormData,
-): Promise<FormState> {
-  await requireAdmin();
-
-  const slot = str(fd, "slot");
-  const time = str(fd, "time");
-  if (!slot) return { error: "Pick which safari this is." };
-  if (!time) return { error: "Add the reporting time." };
-
-  await saveSafari({
-    id: str(fd, "id") || randomUUID(),
-    slot,
-    time,
-    note: str(fd, "note"),
-    createdAt: new Date().toISOString(),
-  });
-
-  revalidateAll();
-  return { ok: true };
-}
-
-export async function removeSafariAction(fd: FormData): Promise<void> {
-  await requireAdmin();
-  const id = str(fd, "id");
-  if (id) await deleteSafari(id);
-  revalidateAll();
-}
-
 // ------------------------------------------------------------- itinerary ----
 
-/** Add a line to the programme, or edit one — the form posts an id either way. */
+/**
+ * Add a line to the programme, or edit one — the form posts an id either way.
+ *
+ * The optional cost box writes through to a linked row in `costs` rather than
+ * storing a number on the entry, so there is exactly one place a bill lives and
+ * the money page can't disagree with the programme. Emptying the box deletes
+ * that row; the "who pays" side stays on the money page.
+ */
 export async function saveItineraryAction(
   _prev: FormState,
   fd: FormData,
@@ -323,11 +303,11 @@ export async function saveItineraryAction(
   if (!date) return { error: "Pick which day this happens on." };
   if (!title) return { error: "Give it a name — 'Convoy leaves Nagpur'." };
 
-  const id = str(fd, "id");
-  const existing = id ? (await listItinerary()).find((i) => i.id === id) : null;
+  const id = str(fd, "id") || randomUUID();
+  const existing = await findItinerary(id);
 
   await saveItineraryItem({
-    id: id || randomUUID(),
+    id,
     date,
     time: str(fd, "time"),
     title,
@@ -335,21 +315,51 @@ export async function saveItineraryAction(
     createdAt: existing?.createdAt ?? new Date().toISOString(),
   });
 
+  const total = rupees(fd, "cost");
+  const linked = (await listCosts()).find((c) => c.itineraryId === id);
+
+  if (total > 0) {
+    await saveCost({
+      id: linked?.id ?? randomUUID(),
+      // The entry's name is the cost's name, so renaming one renames both.
+      label: title,
+      total,
+      note: linked?.note ?? "",
+      // Charged to everyone until Mayuri narrows it on the money page — the
+      // whole point of keeping the picker off this form.
+      appliesToAll: linked?.appliesToAll ?? true,
+      memberIds: linked?.memberIds ?? [],
+      itineraryId: id,
+      createdAt: linked?.createdAt ?? new Date().toISOString(),
+    });
+  } else if (linked) {
+    await deleteCost(linked.id);
+  }
+
   revalidateAll();
   return { ok: true };
 }
 
+/** Removing an entry takes its cost with it, so no orphan bill is left behind. */
 export async function removeItineraryAction(fd: FormData): Promise<void> {
   await requireAdmin();
   const id = str(fd, "id");
-  if (id) await deleteItineraryItem(id);
+  if (!id) return;
+
+  const linked = (await listCosts()).find((c) => c.itineraryId === id);
+  if (linked) await deleteCost(linked.id);
+  await deleteItineraryItem(id);
   revalidateAll();
+}
+
+async function findItinerary(id: string) {
+  return (await listItinerary()).find((i) => i.id === id) ?? null;
 }
 
 // ----------------------------------------------------------------- costs ----
 
 /**
- * A cost is a rate per person plus who it applies to. "Everyone" is stored as a
+ * A cost is one whole bill plus who it applies to. "Everyone" is stored as a
  * flag rather than as the current list of ids, so somebody joining later is
  * charged for it automatically instead of quietly slipping through.
  */
@@ -360,10 +370,10 @@ export async function saveCostAction(
   await requireAdmin();
 
   const label = str(fd, "label");
-  if (!label) return { error: "Name the cost — 'Safari seat', 'Resort'." };
+  if (!label) return { error: "Name it — 'Resort', 'Tips and water'." };
 
-  const amount = money(fd, "amount");
-  if (amount <= 0) return { error: "Put in the amount per person." };
+  const total = rupees(fd, "total");
+  if (total <= 0) return { error: "Put in the total for the whole group." };
 
   const appliesToAll = str(fd, "appliesTo") !== "some";
   const memberIds = appliesToAll
@@ -379,11 +389,14 @@ export async function saveCostAction(
 
   await saveCost({
     id: id || randomUUID(),
-    label,
-    amount,
+    // A programme-linked cost takes its name from the entry, so don't let an
+    // edit here rename it out of step with the programme.
+    label: existing?.itineraryId ? existing.label : label,
+    total,
     note: str(fd, "note"),
     appliesToAll,
     memberIds,
+    itineraryId: existing?.itineraryId ?? "",
     createdAt: existing?.createdAt ?? new Date().toISOString(),
   });
 

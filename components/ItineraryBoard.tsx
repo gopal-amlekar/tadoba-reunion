@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
   removeItineraryAction,
@@ -8,6 +9,7 @@ import {
 } from "@/app/actions";
 import {
   PROGRAMME_DAYS,
+  formatMoney,
   prettyDate,
   prettyTime,
   programmeDay,
@@ -24,13 +26,36 @@ import type { ItineraryItem } from "@/lib/types";
  * keep in sync.
  */
 
+/** What an entry costs, already divided. Computed on the server. */
+export type EntryCost = {
+  total: number;
+  /** What one person pays. Individuals can differ by a rupee; see splitOf. */
+  each: number;
+  heads: number;
+};
+
 const initial: FormState = {};
+
+function CostTag({ cost }: { cost: EntryCost }) {
+  return (
+    <span className="shrink-0 text-right text-xs whitespace-nowrap">
+      <span className="text-amber-glow">{formatMoney(cost.total)}</span>
+      {cost.heads > 0 ? (
+        <span className="text-bone-dim"> · {formatMoney(cost.each)} each</span>
+      ) : (
+        <span className="text-tiger"> · nobody charged yet</span>
+      )}
+    </span>
+  );
+}
 
 function ItineraryForm({
   item,
+  cost,
   onSaved,
 }: {
   item?: ItineraryItem;
+  cost?: EntryCost;
   onSaved?: () => void;
 }) {
   const [state, action, pending] = useActionState(saveItineraryAction, initial);
@@ -86,15 +111,37 @@ function ItineraryForm({
         </div>
       </div>
 
-      <div>
-        <label className="label">Detail (optional)</label>
-        <input
-          name="detail"
-          defaultValue={item?.detail ?? ""}
-          placeholder="Be in the hotel lobby by 8:45 — we leave on the dot."
-          className="field !py-2 text-sm"
-        />
+      <div className="grid gap-3 sm:grid-cols-[2.5fr_1fr]">
+        <div>
+          <label className="label">Detail (optional)</label>
+          <input
+            name="detail"
+            defaultValue={item?.detail ?? ""}
+            placeholder="Be in the hotel lobby by 8:45 — we leave on the dot."
+            className="field !py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="label">Est. cost — whole group</label>
+          <input
+            name="cost"
+            inputMode="decimal"
+            defaultValue={cost ? String(cost.total) : ""}
+            placeholder="8000"
+            className="field !py-2 text-sm"
+          />
+        </div>
       </div>
+
+      <p className="text-xs text-bone-dim">
+        The cost is the total for everybody together, not per head — it gets
+        divided on the{" "}
+        <Link href="/money" className="text-tiger underline">
+          money page
+        </Link>
+        , where you can also narrow it to just some people. Leave it empty for
+        anything free; clear it to drop the cost again.
+      </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn-primary !py-2 text-sm">
@@ -117,13 +164,25 @@ function ItineraryForm({
   );
 }
 
-function Row({ item, canEdit }: { item: ItineraryItem; canEdit: boolean }) {
+function Row({
+  item,
+  cost,
+  canEdit,
+}: {
+  item: ItineraryItem;
+  cost?: EntryCost;
+  canEdit: boolean;
+}) {
   const [editing, setEditing] = useState(false);
 
   if (editing) {
     return (
       <li className="rounded-xl border border-tiger/40 bg-jungle-950/60 p-4">
-        <ItineraryForm item={item} onSaved={() => setEditing(false)} />
+        <ItineraryForm
+          item={item}
+          cost={cost}
+          onSaved={() => setEditing(false)}
+        />
       </li>
     );
   }
@@ -138,31 +197,32 @@ function Row({ item, canEdit }: { item: ItineraryItem; canEdit: boolean }) {
         {item.time ? prettyTime(item.time) : "any time"}
       </span>
       <div>
-        <div className="flex flex-wrap items-baseline gap-x-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <span className="font-semibold text-bone">{item.title}</span>
-          {canEdit && (
-            <span className="no-print flex gap-3 text-xs">
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="text-bone-dim underline hover:text-tiger"
-              >
-                Edit
-              </button>
-              <form action={removeItineraryAction} className="inline">
-                <input type="hidden" name="id" value={item.id} />
-                <button
-                  type="submit"
-                  className="text-bone-dim underline hover:text-tiger"
-                >
-                  Remove
-                </button>
-              </form>
-            </span>
-          )}
+          {cost && <CostTag cost={cost} />}
         </div>
         {item.detail && (
           <p className="mt-0.5 text-sm text-bone-dim">{item.detail}</p>
+        )}
+        {canEdit && (
+          <span className="no-print mt-1 flex gap-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-bone-dim underline hover:text-tiger"
+            >
+              Edit
+            </button>
+            <form action={removeItineraryAction} className="inline">
+              <input type="hidden" name="id" value={item.id} />
+              <button
+                type="submit"
+                className="text-bone-dim underline hover:text-tiger"
+              >
+                Remove
+              </button>
+            </form>
+          </span>
         )}
       </div>
     </li>
@@ -171,9 +231,12 @@ function Row({ item, canEdit }: { item: ItineraryItem; canEdit: boolean }) {
 
 export default function ItineraryBoard({
   items,
+  costs,
   canEdit,
 }: {
   items: ItineraryItem[];
+  /** Keyed by itinerary id — only entries that cost something appear. */
+  costs: Record<string, EntryCost>;
   canEdit: boolean;
 }) {
   // Items arrive already sorted, so the first sighting of each date is also
@@ -207,7 +270,12 @@ export default function ItineraryBoard({
                   {items
                     .filter((i) => i.date === date)
                     .map((i) => (
-                      <Row key={i.id} item={i} canEdit={canEdit} />
+                      <Row
+                        key={i.id}
+                        item={i}
+                        cost={costs[i.id]}
+                        canEdit={canEdit}
+                      />
                     ))}
                 </ul>
               </section>

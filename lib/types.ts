@@ -45,21 +45,6 @@ export type Participant = {
 };
 
 /**
- * A booked safari. Event-level rather than per-person: Mayuri books the gypsies
- * and everyone reads the same reporting time.
- */
-export type Safari = {
-  id: string;
-  /** One of SAFARI_SLOTS — which drive it is. */
-  slot: string;
-  /** Exact reporting time, "HH:MM". */
-  time: string;
-  /** Gate, meeting point, vehicle count — whatever people need to know. */
-  note: string;
-  createdAt: string;
-};
-
-/**
  * One line of the programme. Mayuri writes these; everyone reads them.
  * Ordering is derived — date, then time — so fixing a time reorders the day
  * and there is no separate drag-and-drop to get wrong.
@@ -77,21 +62,31 @@ export type ItineraryItem = {
 };
 
 /**
- * One thing the trip costs, priced per person rather than as a lump sum.
- * A per-head rate is what Mayuri is actually quoted (a gypsy seat, a room
- * share, a bus seat), and it means a person's contribution never shifts
- * underneath them when somebody else joins or drops out.
+ * One thing the trip costs: the whole bill, split between the people it applies
+ * to. Note the consequence — a share moves whenever the group does, so adding a
+ * late joiner re-divides every cost they're part of.
  */
 export type CostItem = {
   id: string;
   label: string;
-  /** Rupees per person. */
-  amount: number;
+  /**
+   * The total in rupees, for everybody it applies to together — not per head.
+   * Whole rupees: the split has to reconcile to the last rupee and nobody in
+   * this group is settling up in paise.
+   */
+  total: number;
   /** "4 gypsies, 6 seats each" — context for the number. */
   note: string;
   /** When false, only the people in `memberIds` pay for this. */
   appliesToAll: boolean;
   memberIds: string[];
+  /**
+   * Set when this cost belongs to a line of the programme, so the two stay in
+   * step: the entry's title becomes the label, and deleting the entry takes the
+   * cost with it. Empty for the extras — tips, water, a cake — that belong to
+   * no particular event.
+   */
+  itineraryId: string;
   createdAt: string;
 };
 
