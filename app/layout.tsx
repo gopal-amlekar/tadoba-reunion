@@ -43,35 +43,43 @@ export default async function RootLayout({
         <JungleBackdrop />
 
         <header className="no-print sticky top-0 z-50 border-b border-jungle-800/80 bg-jungle-950/80 backdrop-blur-md">
+          {/* Five nav items plus the wordmark don't fit across a phone. Left to
+              squeeze, the labels break onto two lines each and the header grows
+              to three rows; so the wordmark drops below sm and the links scroll
+              sideways instead, keeping the sticky header one line tall. */}
           <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-4">
             <Link
               href="/"
-              className="flex items-center gap-2 font-display text-lg font-bold text-bone transition hover:text-tiger"
+              className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-bone transition hover:text-tiger"
             >
               <TigerMark size={26} />
-              {EVENT.name}
+              <span className="hidden sm:inline">{EVENT.name}</span>
             </Link>
-            <span className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
-              {role && (
-                <>
-                  <NavLink href="/travel">Travel list</NavLink>
-                  <NavLink href="/groups">Groups</NavLink>
-                  <NavLink href="/plan">The plan</NavLink>
-                </>
-              )}
-              {role === "admin" && <NavLink href="/admin">Organise</NavLink>}
-              {!role && (
-                <Link href="/unlock" className="btn-primary !px-4 !py-1.5 text-sm">
-                  Enter details
-                </Link>
-              )}
+            <span className="ml-auto flex min-w-0 items-center gap-1 text-sm sm:gap-3">
+              <span className="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto sm:gap-3">
+                {role && (
+                  <>
+                    <NavLink href="/itinerary">Programme</NavLink>
+                    <NavLink href="/money">Money</NavLink>
+                    <NavLink href="/travel">Travel list</NavLink>
+                    <NavLink href="/groups">Groups</NavLink>
+                  </>
+                )}
+                {role === "admin" && <NavLink href="/admin">Organise</NavLink>}
+                {!role && (
+                  <Link href="/unlock" className="btn-primary !px-4 !py-1.5 text-sm">
+                    Enter details
+                  </Link>
+                )}
+              </span>
               {role && (
                 // Shared devices and borrowed phones: everyone needs a way out,
-                // not just the organiser.
-                <form action={lockAction}>
+                // not just the organiser — so this sits outside the scrolling
+                // strip and stays put however many pages get added to it.
+                <form action={lockAction} className="shrink-0">
                   <button
                     type="submit"
-                    className="rounded-lg px-2 py-1.5 text-bone-dim transition hover:bg-jungle-800 hover:text-tiger sm:px-3"
+                    className="rounded-lg px-2 py-1.5 whitespace-nowrap text-bone-dim transition hover:bg-jungle-800 hover:text-tiger sm:px-3"
                   >
                     Log out
                   </button>

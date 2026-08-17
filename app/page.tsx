@@ -46,9 +46,14 @@ export default async function HomePage() {
               Add your travel details →
             </Link>
             {unlocked && (
-              <Link href="/travel" className="btn-ghost">
-                See everyone&apos;s plans
-              </Link>
+              <>
+                <Link href="/itinerary" className="btn-ghost">
+                  The programme
+                </Link>
+                <Link href="/money" className="btn-ghost">
+                  Money
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -105,12 +110,14 @@ export default async function HomePage() {
         </div>
         <div className="card p-6">
           <h2 className="font-display text-xl font-bold text-leaf">
-            📋 What we need from you
+            📋 What you need to do
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-bone-dim">
-            Your arrival and return dates, times and mode of travel. That&apos;s
-            it. {EVENT.organiser} takes it from there — rooms, vehicles, food
-            counts, the lot.
+            Put in your travel dates, read{" "}
+            <strong className="text-bone">the programme</strong>, and pay your
+            share. What the trip costs and where you stand is on the{" "}
+            <strong className="text-bone">money</strong> page — no more asking
+            on the group.
           </p>
         </div>
       </section>

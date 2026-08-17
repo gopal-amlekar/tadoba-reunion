@@ -12,10 +12,16 @@ import {
   startSession,
 } from "@/lib/auth";
 import {
+  deleteCost,
+  deleteItineraryItem,
   deleteParticipant,
   deleteSafari,
   getParticipant,
+  listCosts,
+  listItinerary,
   listParticipants,
+  saveCost,
+  saveItineraryItem,
   saveParticipant,
   saveSafari,
 } from "@/lib/db";
@@ -28,9 +34,10 @@ function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
 }
 
-function num(fd: FormData, key: string): number {
-  const n = Number(str(fd, key));
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+/** Rupees. Tolerates "₹4,500" being pasted straight out of a WhatsApp message. */
+function money(fd: FormData, key: string): number {
+  const n = Number(str(fd, key).replace(/[₹,\s]/g, ""));
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 }
 
 /** A dropdown with an "Other" escape hatch: use the free-text box when picked. */
@@ -41,6 +48,10 @@ function choice(fd: FormData, key: string): string {
 
 async function requireUnlocked(): Promise<void> {
   if (!(await getRole())) redirect("/unlock");
+}
+
+async function requireAdmin(): Promise<void> {
+  if ((await getRole()) !== "admin") redirect("/unlock");
 }
 
 // ------------------------------------------------------------------ auth ----
@@ -107,12 +118,10 @@ export async function saveParticipantAction(
     stayPreference: str(fd, "stayPreference"),
     notes: str(fd, "notes"),
 
-    // Organiser-only fields are never posted by the guest form, so preserve
-    // whatever Mayuri has already set instead of blanking it.
-    stayAssigned: existing?.stayAssigned ?? "",
-    preNightStay: existing?.preNightStay ?? "",
-    vehicleGroup: existing?.vehicleGroup ?? "",
-    adminNotes: existing?.adminNotes ?? "",
+    // What Mayuri has received is hers to set, and this form never posts it —
+    // carry it through so editing travel details can't wipe someone's payment.
+    paid: existing?.paid ?? 0,
+    paidNote: existing?.paidNote ?? "",
     status: str(fd, "status") || existing?.status || "Confirmed",
 
     createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -143,7 +152,8 @@ export async function deleteParticipantAction(fd: FormData): Promise<void> {
 function revalidateAll(): void {
   revalidatePath("/");
   revalidatePath("/travel");
-  revalidatePath("/plan");
+  revalidatePath("/itinerary");
+  revalidatePath("/money");
   revalidatePath("/admin");
   revalidatePath("/groups");
 }
@@ -273,7 +283,7 @@ export async function addSafariAction(
   _prev: FormState,
   fd: FormData,
 ): Promise<FormState> {
-  if ((await getRole()) !== "admin") redirect("/unlock");
+  await requireAdmin();
 
   const slot = str(fd, "slot");
   const time = str(fd, "time");
@@ -293,35 +303,126 @@ export async function addSafariAction(
 }
 
 export async function removeSafariAction(fd: FormData): Promise<void> {
-  if ((await getRole()) !== "admin") redirect("/unlock");
+  await requireAdmin();
   const id = str(fd, "id");
   if (id) await deleteSafari(id);
   revalidateAll();
 }
 
-// ----------------------------------------------------------------- admin ----
+// ------------------------------------------------------------- itinerary ----
 
-/** Mayuri's per-row planning fields: stay, vehicle group, notes, status. */
-export async function adminUpdateAction(fd: FormData): Promise<void> {
-  if ((await getRole()) !== "admin") redirect("/unlock");
+/** Add a line to the programme, or edit one — the form posts an id either way. */
+export async function saveItineraryAction(
+  _prev: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const date = str(fd, "date");
+  const title = str(fd, "title");
+  if (!date) return { error: "Pick which day this happens on." };
+  if (!title) return { error: "Give it a name — 'Convoy leaves Nagpur'." };
 
   const id = str(fd, "id");
-  const existing = await getParticipant(id);
-  if (!existing) return;
+  const existing = id ? (await listItinerary()).find((i) => i.id === id) : null;
 
-  const who = (await getWho()) || "Organiser";
+  await saveItineraryItem({
+    id: id || randomUUID(),
+    date,
+    time: str(fd, "time"),
+    title,
+    detail: str(fd, "detail"),
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+  });
+
+  revalidateAll();
+  return { ok: true };
+}
+
+export async function removeItineraryAction(fd: FormData): Promise<void> {
+  await requireAdmin();
+  const id = str(fd, "id");
+  if (id) await deleteItineraryItem(id);
+  revalidateAll();
+}
+
+// ----------------------------------------------------------------- costs ----
+
+/**
+ * A cost is a rate per person plus who it applies to. "Everyone" is stored as a
+ * flag rather than as the current list of ids, so somebody joining later is
+ * charged for it automatically instead of quietly slipping through.
+ */
+export async function saveCostAction(
+  _prev: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const label = str(fd, "label");
+  if (!label) return { error: "Name the cost — 'Safari seat', 'Resort'." };
+
+  const amount = money(fd, "amount");
+  if (amount <= 0) return { error: "Put in the amount per person." };
+
+  const appliesToAll = str(fd, "appliesTo") !== "some";
+  const memberIds = appliesToAll
+    ? []
+    : fd.getAll("memberIds").map(String).filter(Boolean);
+
+  if (!appliesToAll && memberIds.length === 0) {
+    return { error: "Tick at least one person, or set it to everyone." };
+  }
+
+  const id = str(fd, "id");
+  const existing = id ? (await listCosts()).find((c) => c.id === id) : null;
+
+  await saveCost({
+    id: id || randomUUID(),
+    label,
+    amount,
+    note: str(fd, "note"),
+    appliesToAll,
+    memberIds,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+  });
+
+  revalidateAll();
+  return { ok: true };
+}
+
+export async function removeCostAction(fd: FormData): Promise<void> {
+  await requireAdmin();
+  const id = str(fd, "id");
+  if (id) await deleteCost(id);
+  revalidateAll();
+}
+
+// -------------------------------------------------------------- payments ----
+
+/**
+ * What has come in from one person. It's a running total rather than a list of
+ * receipts — Mayuri is reconciling a phone full of UPI messages, and one number
+ * plus a note is what she actually keeps.
+ */
+export async function recordPaymentAction(
+  _prev: FormState,
+  fd: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const existing = await getParticipant(str(fd, "id"));
+  if (!existing) return { error: "That person is no longer on the list." };
+
   await saveParticipant(
     {
       ...existing,
-      stayAssigned: str(fd, "stayAssigned"),
-      preNightStay: str(fd, "preNightStay"),
-      vehicleGroup: str(fd, "vehicleGroup"),
-      adminNotes: str(fd, "adminNotes"),
-      status: str(fd, "status") || existing.status,
+      paid: money(fd, "paid"),
+      paidNote: str(fd, "paidNote"),
     },
-    who,
+    (await getWho()) || "Organiser",
   );
-  revalidatePath("/admin");
-  revalidatePath("/travel");
-  revalidatePath("/");
+
+  revalidateAll();
+  return { ok: true };
 }

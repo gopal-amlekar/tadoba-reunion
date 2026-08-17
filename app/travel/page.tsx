@@ -37,7 +37,7 @@ export default async function TravelPage({
 
       {safaris.length > 0 && (
         <Link
-          href="/plan"
+          href="/itinerary"
           className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-tiger/40 bg-tiger/5 px-4 py-3 text-sm transition hover:border-tiger"
         >
           <span className="font-semibold text-tiger">🐅 Safari</span>

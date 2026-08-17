@@ -22,10 +22,8 @@ const base = {
   returnDetails: "",
   stayPreference: "",
   notes: "",
-  stayAssigned: "",
-  preNightStay: "",
-  vehicleGroup: "",
-  adminNotes: "",
+  paid: 0,
+  paidNote: "",
   status: "Confirmed",
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-01T10:00:00.000Z",
@@ -39,8 +37,7 @@ const participants = [
     arriveMode: "Flight", arriveDetails: "6E-234 Pune to Nagpur",
     returnDate: "2026-11-22", returnTime: "18:00", returnGateway: "Nagpur",
     returnMode: "Flight",
-    stayAssigned: "Tigress Retreat - Cottage 1", vehicleGroup: "Nagpur TT-1",
-    preNightStay: "Hotel Centre Point, Nagpur",
+    paid: 7500, paidNote: "Paid her own share up front",
     notes: "Reaching a day early to check the resort.",
   },
   {
@@ -49,7 +46,7 @@ const participants = [
     arriveMode: "Flight",
     returnDate: "2026-11-22", returnTime: "19:20", returnGateway: "Nagpur",
     returnMode: "Flight",
-    stayAssigned: "Tigress Retreat - Cottage 1", vehicleGroup: "Nagpur TT-1",
+    paid: 4000, paidNote: "UPI 3 Sep ₹4000, rest promised after Diwali",
   },
   {
     ...base, id: "demo-3", name: "Sneha Jadhav", city: "Solapur", food: "Veg",
@@ -81,12 +78,51 @@ const participants = [
   },
 ];
 
+const itinerary = [
+  ["2026-11-20", "18:00", "Early arrivals reach Nagpur", "Hotel Centre Point — dinner on your own."],
+  ["2026-11-21", "09:00", "Convoy leaves Nagpur", "In the lobby by 8:45 please, we leave on the dot."],
+  ["2026-11-21", "13:00", "Check in at the resort", "Lunch is laid out, rooms from 2pm."],
+  ["2026-11-21", "15:00", "Evening safari", "Report at Moharli gate. Carry a jacket, it gets cold."],
+  ["2026-11-21", "20:30", "Bonfire and dinner", "Antakshari is not optional."],
+  ["2026-11-22", "05:30", "Morning safari", "Tea at 5:15 for anyone who can face it."],
+  ["2026-11-22", "11:00", "Breakfast, group photo, check out", ""],
+  ["2026-11-22", "", "Drops to Nagpur and Chandrapur", "Cars leave to suit your train or flight."],
+].map(([date, time, title, detail], i) => ({
+  id: `demo-itin-${i + 1}`,
+  date,
+  time,
+  title,
+  detail,
+  createdAt: `2026-08-05T09:0${i}:00.000Z`,
+}));
+
+const costs = [
+  {
+    id: "demo-cost-1", label: "Resort, 2 nights", amount: 4500,
+    note: "Twin sharing, all meals", appliesToAll: true, memberIds: [],
+    createdAt: "2026-08-06T09:00:00.000Z",
+  },
+  {
+    id: "demo-cost-2", label: "Safari seat", amount: 1800,
+    note: "2 drives, 4 gypsies at 6 seats each",
+    appliesToAll: false, memberIds: ["demo-1", "demo-2", "demo-3", "demo-5"],
+    createdAt: "2026-08-06T09:01:00.000Z",
+  },
+  {
+    id: "demo-cost-3", label: "Nagpur transfer", amount: 1200,
+    note: "Tempo Traveller both ways",
+    appliesToAll: false, memberIds: ["demo-1", "demo-2", "demo-5"],
+    createdAt: "2026-08-06T09:02:00.000Z",
+  },
+];
+
 const dir = path.join(process.cwd(), ".data");
 await fs.mkdir(dir, { recursive: true });
 await fs.writeFile(
   path.join(dir, "db.json"),
-  JSON.stringify({ participants, audit: [] }, null, 2),
+  JSON.stringify({ participants, audit: [], itinerary, costs }, null, 2),
 );
 
 console.log(`Seeded ${participants.length} demo friends into .data/db.json`);
+console.log(`…plus ${itinerary.length} programme entries and ${costs.length} costs.`);
 console.log("Delete the .data folder to clear them.");

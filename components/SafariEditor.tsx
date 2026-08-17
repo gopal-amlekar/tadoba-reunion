@@ -23,8 +23,8 @@ export default function SafariEditor({ safaris }: { safaris: Safari[] }) {
         🐅 Safari booking
       </h2>
       <p className="mt-1 text-sm text-bone-dim">
-        Set the reporting time for each drive. Everyone sees this on the plan as
-        soon as you save it.
+        Set the reporting time for each drive. It appears at the top of the
+        programme for everyone as soon as you save.
       </p>
 
       {safaris.length > 0 && (

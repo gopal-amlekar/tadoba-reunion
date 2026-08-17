@@ -22,7 +22,7 @@ export default function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-lg px-2 py-1.5 transition sm:px-3 ${
+      className={`rounded-lg px-2 py-1.5 whitespace-nowrap transition sm:px-3 ${
         active
           ? "bg-jungle-800 font-semibold text-tiger"
           : "text-bone-dim hover:bg-jungle-800 hover:text-leaf"

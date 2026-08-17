@@ -90,22 +90,18 @@ export function safariSlot(value: string) {
 }
 
 /**
- * Time-of-day buckets used to group arrivals into pickup runs.
- * A vehicle is planned per bucket per gateway.
+ * The days the programme can have entries on — the evening people trickle in,
+ * the two main days, and the morning the stragglers leave.
  */
-export const SLOTS = [
-  { label: "Early morning", from: 0, to: 8 },
-  { label: "Morning", from: 8, to: 12 },
-  { label: "Afternoon", from: 12, to: 16 },
-  { label: "Evening", from: 16, to: 20 },
-  { label: "Night", from: 20, to: 24 },
+export const PROGRAMME_DAYS = [
+  { value: "2026-11-20", label: "Fri 20 Nov", sub: "the day before" },
+  { value: "2026-11-21", label: "Sat 21 Nov", sub: "day one" },
+  { value: "2026-11-22", label: "Sun 22 Nov", sub: "day two" },
+  { value: "2026-11-23", label: "Mon 23 Nov", sub: "for anyone staying on" },
 ] as const;
 
-export function slotFor(time: string | null | undefined): string {
-  if (!time) return "Time not given";
-  const hour = Number(time.split(":")[0]);
-  if (Number.isNaN(hour)) return "Time not given";
-  return SLOTS.find((s) => hour >= s.from && hour < s.to)?.label ?? "Time not given";
+export function programmeDay(value: string) {
+  return PROGRAMME_DAYS.find((d) => d.value === value);
 }
 
 /** Everything the group does happens on Indian time, wherever the server runs. */
@@ -171,4 +167,14 @@ export function prettyTime(time: string | null | undefined): string {
   const t = to12Hour(time);
   if (!t) return time;
   return `${t.hour}:${String(t.minute).padStart(2, "0")} ${t.meridiem}`;
+}
+
+/**
+ * Rupees, grouped the Indian way — 1,66,200 rather than 166,200. Paise are
+ * kept if someone enters them but never padded on, because nobody splits a
+ * resort bill to two decimal places.
+ */
+export function formatMoney(amount: number): string {
+  const n = Number.isFinite(amount) ? amount : 0;
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }

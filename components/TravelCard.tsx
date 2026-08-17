@@ -81,10 +81,9 @@ export default function TravelCard({
         </div>
       </div>
 
-      {(p.stayAssigned || p.stayPreference) && (
+      {p.stayPreference && (
         <p className="mt-3 text-xs text-bone-dim">
-          <span className="text-amber-glow">Stay:</span>{" "}
-          {p.stayAssigned || `${p.stayPreference} (suggested)`}
+          <span className="text-amber-glow">Stay:</span> {p.stayPreference}
         </p>
       )}
       {p.notes && (

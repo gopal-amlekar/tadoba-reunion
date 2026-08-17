@@ -31,17 +31,12 @@ export type Participant = {
   /** Anything else they want Mayuri to know. */
   notes: string;
 
-  // ---- Filled in by Mayuri from the admin page ----
-  /** Where they sleep at Tadoba during the event itself. */
-  stayAssigned: string;
-  /**
-   * Where they sleep the night they arrive early — usually a hotel in Nagpur
-   * or Chandrapur, sometimes the resort itself if they drive straight in.
-   * Only relevant for people landing before the main day.
-   */
-  preNightStay: string;
-  vehicleGroup: string;
-  adminNotes: string;
+  // ---- Money, filled in by Mayuri ----
+  /** Total rupees received from this person so far. */
+  paid: number;
+  /** How it came in — "UPI 12 Oct ₹3000 + cash ₹1500". */
+  paidNote: string;
+
   status: string;
 
   createdAt: string;
@@ -61,6 +56,42 @@ export type Safari = {
   time: string;
   /** Gate, meeting point, vehicle count — whatever people need to know. */
   note: string;
+  createdAt: string;
+};
+
+/**
+ * One line of the programme. Mayuri writes these; everyone reads them.
+ * Ordering is derived — date, then time — so fixing a time reorders the day
+ * and there is no separate drag-and-drop to get wrong.
+ */
+export type ItineraryItem = {
+  id: string;
+  /** "2026-11-21". */
+  date: string;
+  /** "HH:MM", or empty for something that has no fixed hour. */
+  time: string;
+  title: string;
+  /** The extra line under the title — where to meet, what to carry. */
+  detail: string;
+  createdAt: string;
+};
+
+/**
+ * One thing the trip costs, priced per person rather than as a lump sum.
+ * A per-head rate is what Mayuri is actually quoted (a gypsy seat, a room
+ * share, a bus seat), and it means a person's contribution never shifts
+ * underneath them when somebody else joins or drops out.
+ */
+export type CostItem = {
+  id: string;
+  label: string;
+  /** Rupees per person. */
+  amount: number;
+  /** "4 gypsies, 6 seats each" — context for the number. */
+  note: string;
+  /** When false, only the people in `memberIds` pay for this. */
+  appliesToAll: boolean;
+  memberIds: string[];
   createdAt: string;
 };
 
@@ -93,9 +124,7 @@ export const EMPTY_PARTICIPANT: Omit<Participant, "id" | "createdAt" | "updatedA
   returnDetails: "",
   stayPreference: "",
   notes: "",
-  stayAssigned: "",
-  preNightStay: "",
-  vehicleGroup: "",
-  adminNotes: "",
+  paid: 0,
+  paidNote: "",
   status: "Confirmed",
 };

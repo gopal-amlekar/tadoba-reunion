@@ -1,54 +1,84 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import AdminRow from "@/components/AdminRow";
-import PlanView from "@/components/PlanView";
-import SafariEditor from "@/components/SafariEditor";
 import { getRole } from "@/lib/auth";
-import { listAudit, listParticipants, listSafaris, usingPostgres } from "@/lib/db";
-import { EVENT, prettyStamp } from "@/lib/event";
-import { totals } from "@/lib/logistics";
+import {
+  listAudit,
+  listCosts,
+  listItinerary,
+  listParticipants,
+  usingPostgres,
+} from "@/lib/db";
+import { EVENT, formatMoney, prettyStamp } from "@/lib/event";
+import { moneySummary } from "@/lib/money";
+import { totals } from "@/lib/roster";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Mayuri's desk. The programme and the money are edited on their own public
+ * pages — she sees the edit controls there — so what's left here is the stuff
+ * that is genuinely only hers: the state of things, the change log and the
+ * export.
+ */
 export default async function AdminPage() {
   if ((await getRole()) !== "admin") redirect("/unlock");
 
   const people = await listParticipants();
-  const safaris = await listSafaris();
+  const costs = await listCosts();
+  const items = await listItinerary();
   const audit = await listAudit(40);
-  const t = totals(people);
 
-  const stayOptions = [
-    ...new Set(people.map((p) => p.stayAssigned).filter(Boolean)),
-  ];
-  const preNightOptions = [
-    ...new Set(people.map((p) => p.preNightStay).filter(Boolean)),
-  ];
-  const vehicleOptions = [
-    ...new Set(people.map((p) => p.vehicleGroup).filter(Boolean)),
+  const t = totals(people);
+  const money = moneySummary(people, costs);
+
+  const jobs = [
+    {
+      href: "/itinerary",
+      title: "The programme",
+      done: items.length > 0,
+      detail:
+        items.length > 0
+          ? `${items.length} ${items.length === 1 ? "entry" : "entries"} published`
+          : "Nothing published yet — the group can't see a plan",
+    },
+    {
+      href: "/money",
+      title: "Costs & contributions",
+      done: costs.length > 0,
+      detail:
+        costs.length > 0
+          ? `${costs.length} ${costs.length === 1 ? "cost" : "costs"} · ${formatMoney(money.outstanding)} still to come in`
+          : "No costs entered, so nobody has a share yet",
+    },
+    {
+      href: "/travel",
+      title: "Travel details",
+      done: t.missingTravel === 0 && t.entries > 0,
+      detail:
+        t.entries === 0
+          ? "Nobody on the list yet"
+          : t.missingTravel > 0
+            ? `${t.missingTravel} missing arrival or return dates`
+            : "Everyone has dates in",
+    },
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl font-bold text-bone">
-            Logistics desk
+            Organiser&apos;s desk
           </h1>
           <p className="mt-1 text-bone-dim">
-            Everything {EVENT.organiser} needs to book rooms, vehicles and food.
-            The whole group can see{" "}
-            <Link href="/plan" className="text-tiger underline">
-              the plan
-            </Link>
-            ; the assignments, notes and export below are yours alone.
+            Where things stand, {EVENT.organiser}. The programme and the money
+            are edited on their own pages — the group sees those, you see the
+            same page with the controls on.
           </p>
         </div>
-        <div className="no-print flex gap-2">
-          <a href="/api/export" className="btn-ghost !py-2 text-sm">
-            ⬇ Export CSV
-          </a>
-        </div>
+        <a href="/api/export" className="no-print btn-ghost !py-2 text-sm">
+          ⬇ Export CSV
+        </a>
       </div>
 
       {!usingPostgres && (
@@ -60,52 +90,47 @@ export default async function AdminPage() {
         </p>
       )}
 
-      {t.unassignedStay > 0 && (
-        <p className="mt-6 rounded-xl border border-leaf/40 bg-leaf/10 px-4 py-3 text-sm text-leaf">
-          <strong>{t.unassignedStay}</strong>{" "}
-          {t.unassignedStay === 1 ? "person has" : "people have"} no Tadoba room
-          assigned yet.
-        </p>
-      )}
+      {/* ---------------------------------------------------- to-do list -- */}
+      <section className="mt-8 grid gap-4 md:grid-cols-3">
+        {jobs.map((j) => (
+          <Link
+            key={j.href}
+            href={j.href}
+            className="card p-5 transition hover:border-tiger/50"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-bold text-bone">
+                {j.title}
+              </h2>
+              <span className={j.done ? "text-leaf" : "text-tiger"}>
+                {j.done ? "✓" : "•"}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-bone-dim">{j.detail}</p>
+          </Link>
+        ))}
+      </section>
 
-      <div className="mt-8">
-        <SafariEditor safaris={safaris} />
-      </div>
-
-      <div className="mt-8">
-        <PlanView people={people} safaris={safaris} />
-      </div>
-
-      {/* ------------------------------------------------------- master -- */}
-      <section className="mt-12">
-        <h2 className="font-display text-2xl font-bold text-bone">
-          📋 Everyone — assign &amp; annotate
-        </h2>
-        <p className="mt-1 text-sm text-bone-dim">
-          Set the stay, group people into vehicles, and keep your own notes.
-          Reuse the same vehicle group name to build a van load.
-        </p>
-        {people.length === 0 ? (
-          <div className="card mt-4 p-8 text-center text-bone-dim">
-            Nothing yet.{" "}
-            <Link href="/travel/new" className="text-tiger underline">
-              Add the first entry
-            </Link>
-            .
-          </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {people.map((p) => (
-              <AdminRow
-                key={p.id}
-                p={p}
-                stayOptions={stayOptions}
-                preNightOptions={preNightOptions}
-                vehicleOptions={vehicleOptions}
-              />
-            ))}
-          </div>
+      {/* ------------------------------------------------------- numbers -- */}
+      <section className="mt-8 flex flex-wrap gap-2">
+        <span className="chip !border-leaf/40 !text-leaf">
+          {t.entries} coming
+        </span>
+        <span className="chip">{t.confirmed} confirmed</span>
+        {t.tentative > 0 && (
+          <span className="chip !border-amber-glow/40 !text-amber-glow">
+            {t.tentative} tentative
+          </span>
         )}
+        {t.cancelled > 0 && <span className="chip">{t.cancelled} cancelled</span>}
+        {Object.entries(t.food).map(([k, v]) => (
+          <span key={k} className="chip">
+            {k}: {v}
+          </span>
+        ))}
+        <span className="chip !border-tiger/40 !text-tiger">
+          {formatMoney(money.received)} of {formatMoney(money.expected)} in
+        </span>
       </section>
 
       {/* -------------------------------------------------------- audit -- */}

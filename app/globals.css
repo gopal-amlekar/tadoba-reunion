@@ -78,6 +78,15 @@ body {
   }
 }
 
+/* A sideways-scrolling strip shouldn't show a scrollbar eating into a 40px-tall
+   nav row — the overflowing item peeking in is enough of a hint. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Tiger stripes — used as a thin divider under the hero. */
 .stripes {
   background-image: repeating-linear-gradient(

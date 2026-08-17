@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRole } from "@/lib/auth";
-import { listParticipants } from "@/lib/db";
-import { type Participant } from "@/lib/types";
+import { listCosts, listParticipants } from "@/lib/db";
+import { ledgerFor } from "@/lib/money";
+import { type CostItem, type Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -22,15 +23,27 @@ const COLUMNS: Array<[string, (p: Participant) => string | number]> = [
   ["Return mode", (p) => p.returnMode],
   ["Return details", (p) => p.returnDetails],
   ["Stay suggested", (p) => p.stayPreference],
-  ["Tadoba stay", (p) => p.stayAssigned],
-  ["Night-before stay", (p) => p.preNightStay],
-  ["Vehicle group", (p) => p.vehicleGroup],
   ["Status", (p) => p.status],
   ["Their notes", (p) => p.notes],
-  ["Organiser notes", (p) => p.adminNotes],
   ["Last updated", (p) => p.updatedAt],
   ["Updated by", (p) => p.updatedBy],
 ];
+
+/**
+ * The money columns need the cost list, so they're built per export rather
+ * than living in the static table above. Plain numbers, no ₹ — this file gets
+ * opened in a spreadsheet and totalled.
+ */
+function moneyColumns(
+  costs: CostItem[],
+): Array<[string, (p: Participant) => string | number]> {
+  return [
+    ["Share", (p) => ledgerFor(p, costs).share],
+    ["Received", (p) => p.paid || 0],
+    ["Balance", (p) => ledgerFor(p, costs).balance],
+    ["Payment note", (p) => p.paidNote],
+  ];
+}
 
 /**
  * Excel treats a leading =, +, - or @ as a formula. Prefix those cells with a
@@ -48,9 +61,10 @@ export async function GET() {
   }
 
   const people = await listParticipants();
+  const columns = [...COLUMNS, ...moneyColumns(await listCosts())];
   const rows = [
-    COLUMNS.map(([header]) => cell(header)).join(","),
-    ...people.map((p) => COLUMNS.map(([, get]) => cell(get(p))).join(",")),
+    columns.map(([header]) => cell(header)).join(","),
+    ...people.map((p) => columns.map(([, get]) => cell(get(p))).join(",")),
   ];
 
   // BOM so Excel opens it as UTF-8 rather than mangling names.

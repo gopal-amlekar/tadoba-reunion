@@ -2,7 +2,13 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import type { AuditEntry, Participant, Safari } from "./types";
+import type {
+  AuditEntry,
+  CostItem,
+  ItineraryItem,
+  Participant,
+  Safari,
+} from "./types";
 
 /**
  * Two storage backends, same API:
@@ -30,6 +36,8 @@ type FileShape = {
   participants: Participant[];
   audit: AuditEntry[];
   safaris?: Safari[];
+  itinerary?: ItineraryItem[];
+  costs?: CostItem[];
 };
 
 // ---------------------------------------------------------------- postgres --
@@ -63,20 +71,22 @@ function ensureSchema(): Promise<void> {
         return_details  TEXT DEFAULT '',
         stay_preference TEXT DEFAULT '',
         notes           TEXT DEFAULT '',
-        stay_assigned   TEXT DEFAULT '',
-        pre_night_stay  TEXT DEFAULT '',
-        vehicle_group   TEXT DEFAULT '',
-        admin_notes     TEXT DEFAULT '',
+        paid            NUMERIC DEFAULT 0,
+        paid_note       TEXT DEFAULT '',
         status          TEXT DEFAULT 'Confirmed',
         created_at      TIMESTAMPTZ DEFAULT now(),
         updated_at      TIMESTAMPTZ DEFAULT now(),
         updated_by      TEXT DEFAULT ''
       )
     `;
-    // Added after the first deploy, so existing tables need it backfilled.
-    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS pre_night_stay TEXT DEFAULT ''`;
+    // Added after the first deploy, so existing tables need them backfilled.
+    // The dropped logistics columns (stay_assigned, pre_night_stay,
+    // vehicle_group, admin_notes) are left alone where they already exist —
+    // they all default to '', so nothing here has to know about them.
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_id TEXT DEFAULT ''`;
     await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''`;
+    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS paid NUMERIC DEFAULT 0`;
+    await sql`ALTER TABLE participants ADD COLUMN IF NOT EXISTS paid_note TEXT DEFAULT ''`;
     await sql`
       CREATE TABLE IF NOT EXISTS safaris (
         id         TEXT PRIMARY KEY,
@@ -84,6 +94,29 @@ function ensureSchema(): Promise<void> {
         time       TEXT DEFAULT '',
         note       TEXT DEFAULT '',
         created_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS itinerary (
+        id         TEXT PRIMARY KEY,
+        date       TEXT DEFAULT '',
+        time       TEXT DEFAULT '',
+        title      TEXT DEFAULT '',
+        detail     TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS costs (
+        id             TEXT PRIMARY KEY,
+        label          TEXT DEFAULT '',
+        amount         NUMERIC DEFAULT 0,
+        note           TEXT DEFAULT '',
+        applies_to_all BOOLEAN DEFAULT true,
+        -- Participant ids, comma separated. They're UUIDs, so there is nothing
+        -- to escape, and a join table would be three queries for one small list.
+        member_ids     TEXT DEFAULT '',
+        created_at     TIMESTAMPTZ DEFAULT now()
       )
     `;
     await sql`
@@ -126,10 +159,10 @@ function rowToParticipant(r: any): Participant {
     returnDetails: r.return_details ?? "",
     stayPreference: r.stay_preference ?? "",
     notes: r.notes ?? "",
-    stayAssigned: r.stay_assigned ?? "",
-    preNightStay: r.pre_night_stay ?? "",
-    vehicleGroup: r.vehicle_group ?? "",
-    adminNotes: r.admin_notes ?? "",
+    // NUMERIC comes back from the driver as a string, so it needs coercing or
+    // every sum on the money page turns into string concatenation.
+    paid: Number(r.paid ?? 0) || 0,
+    paidNote: r.paid_note ?? "",
     status: r.status ?? "Confirmed",
     createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
     updatedAt: new Date(r.updated_at ?? Date.now()).toISOString(),
@@ -209,8 +242,8 @@ export async function saveParticipant(
         id, name, city, phone, food, group_id, group_name,
         arrive_date, arrive_time, arrive_gateway, arrive_mode, arrive_details,
         return_date, return_time, return_gateway, return_mode, return_details,
-        stay_preference, notes, stay_assigned, pre_night_stay, vehicle_group,
-        admin_notes, status, created_at, updated_at, updated_by
+        stay_preference, notes, paid, paid_note,
+        status, created_at, updated_at, updated_by
       ) VALUES (
         ${record.id}, ${record.name}, ${record.city}, ${record.phone},
         ${record.food}, ${record.groupId}, ${record.groupName},
@@ -218,8 +251,8 @@ export async function saveParticipant(
         ${record.arriveMode}, ${record.arriveDetails},
         ${record.returnDate}, ${record.returnTime}, ${record.returnGateway},
         ${record.returnMode}, ${record.returnDetails},
-        ${record.stayPreference}, ${record.notes}, ${record.stayAssigned},
-        ${record.preNightStay}, ${record.vehicleGroup}, ${record.adminNotes},
+        ${record.stayPreference}, ${record.notes},
+        ${record.paid}, ${record.paidNote},
         ${record.status},
         ${record.createdAt}, ${record.updatedAt}, ${record.updatedBy}
       )
@@ -234,10 +267,8 @@ export async function saveParticipant(
         return_gateway = EXCLUDED.return_gateway, return_mode = EXCLUDED.return_mode,
         return_details = EXCLUDED.return_details,
         stay_preference = EXCLUDED.stay_preference, notes = EXCLUDED.notes,
-        stay_assigned = EXCLUDED.stay_assigned,
-        pre_night_stay = EXCLUDED.pre_night_stay,
-        vehicle_group = EXCLUDED.vehicle_group,
-        admin_notes = EXCLUDED.admin_notes, status = EXCLUDED.status,
+        paid = EXCLUDED.paid, paid_note = EXCLUDED.paid_note,
+        status = EXCLUDED.status,
         updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by
     `;
     await sql`
@@ -363,6 +394,139 @@ export async function deleteSafari(id: string): Promise<void> {
   });
 }
 
+// ------------------------------------------------------------- itinerary ----
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToItinerary(r: any): ItineraryItem {
+  return {
+    id: r.id,
+    date: r.date ?? "",
+    time: r.time ?? "",
+    title: r.title ?? "",
+    detail: r.detail ?? "",
+    createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Day first, then time — and an item with no time sorts to the end of its day,
+ * because "sometime on Sunday" belongs after everything that has an hour.
+ */
+function itineraryOrder(a: ItineraryItem, b: ItineraryItem): number {
+  if (a.date !== b.date) return a.date.localeCompare(b.date);
+  if (!a.time !== !b.time) return a.time ? -1 : 1;
+  return a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt);
+}
+
+export async function listItinerary(): Promise<ItineraryItem[]> {
+  if (sql) {
+    await ensureSchema();
+    const rows = await sql`SELECT * FROM itinerary`;
+    return rows.map(rowToItinerary).sort(itineraryOrder);
+  }
+  const data = await readFile();
+  return [...(data.itinerary ?? [])].sort(itineraryOrder);
+}
+
+export async function saveItineraryItem(item: ItineraryItem): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`
+      INSERT INTO itinerary (id, date, time, title, detail, created_at)
+      VALUES (${item.id}, ${item.date}, ${item.time}, ${item.title},
+              ${item.detail}, ${item.createdAt})
+      ON CONFLICT (id) DO UPDATE SET
+        date = EXCLUDED.date, time = EXCLUDED.time,
+        title = EXCLUDED.title, detail = EXCLUDED.detail
+    `;
+    return;
+  }
+  const data = await readFile();
+  const list = data.itinerary ?? [];
+  const idx = list.findIndex((x) => x.id === item.id);
+  if (idx >= 0) list[idx] = item;
+  else list.push(item);
+  await writeFile({ ...data, itinerary: list });
+}
+
+export async function deleteItineraryItem(id: string): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`DELETE FROM itinerary WHERE id = ${id}`;
+    return;
+  }
+  const data = await readFile();
+  await writeFile({
+    ...data,
+    itinerary: (data.itinerary ?? []).filter((i) => i.id !== id),
+  });
+}
+
+// ----------------------------------------------------------------- costs ----
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToCost(r: any): CostItem {
+  return {
+    id: r.id,
+    label: r.label ?? "",
+    amount: Number(r.amount ?? 0) || 0,
+    note: r.note ?? "",
+    appliesToAll: r.applies_to_all !== false,
+    memberIds: String(r.member_ids ?? "").split(",").filter(Boolean),
+    createdAt: new Date(r.created_at ?? Date.now()).toISOString(),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Entry order, so the list reads the way Mayuri built it. */
+export async function listCosts(): Promise<CostItem[]> {
+  if (sql) {
+    await ensureSchema();
+    const rows = await sql`SELECT * FROM costs ORDER BY created_at ASC`;
+    return rows.map(rowToCost);
+  }
+  const data = await readFile();
+  return [...(data.costs ?? [])].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+}
+
+export async function saveCost(item: CostItem): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`
+      INSERT INTO costs (id, label, amount, note, applies_to_all, member_ids, created_at)
+      VALUES (${item.id}, ${item.label}, ${item.amount}, ${item.note},
+              ${item.appliesToAll}, ${item.memberIds.join(",")}, ${item.createdAt})
+      ON CONFLICT (id) DO UPDATE SET
+        label = EXCLUDED.label, amount = EXCLUDED.amount, note = EXCLUDED.note,
+        applies_to_all = EXCLUDED.applies_to_all,
+        member_ids = EXCLUDED.member_ids
+    `;
+    return;
+  }
+  const data = await readFile();
+  const list = data.costs ?? [];
+  const idx = list.findIndex((x) => x.id === item.id);
+  if (idx >= 0) list[idx] = item;
+  else list.push(item);
+  await writeFile({ ...data, costs: list });
+}
+
+export async function deleteCost(id: string): Promise<void> {
+  if (sql) {
+    await ensureSchema();
+    await sql`DELETE FROM costs WHERE id = ${id}`;
+    return;
+  }
+  const data = await readFile();
+  await writeFile({
+    ...data,
+    costs: (data.costs ?? []).filter((c) => c.id !== id),
+  });
+}
+
 // --------------------------------------------------------------- helpers ----
 
 const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
@@ -383,10 +547,8 @@ const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
   returnDetails: "return details",
   stayPreference: "stay preference",
   notes: "notes",
-  stayAssigned: "Tadoba stay",
-  preNightStay: "pre-event night stay",
-  vehicleGroup: "vehicle group",
-  adminNotes: "organiser notes",
+  paid: "amount received",
+  paidNote: "payment note",
   status: "status",
 };
 

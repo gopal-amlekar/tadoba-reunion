@@ -13,8 +13,8 @@ export default async function UnlockPage() {
         Who goes there?
       </h1>
       <p className="mt-2 text-bone-dim">
-        One password for the whole group — {EVENT.organiser} shares it. Mayuri
-        has a second one that unlocks the logistics view.
+        One password for the whole group — {EVENT.organiser} shares it. She has
+        a second one that lets her edit the programme and the costs.
       </p>
       <UnlockForm defaultWho={who} />
     </div>
