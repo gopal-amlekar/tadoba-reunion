@@ -4,7 +4,7 @@ import Countdown from "@/components/Countdown";
 import TigerHero from "@/components/TigerHero";
 import { isUnlocked } from "@/lib/auth";
 import { listParticipants } from "@/lib/db";
-import { EVENT, prettyDate, prettyTime } from "@/lib/event";
+import { EVENT, prettyDate } from "@/lib/event";
 
 export const dynamic = "force-dynamic";
 
@@ -179,12 +179,11 @@ export default async function HomePage() {
                 <div className="mt-3 space-y-1 text-xs text-bone-dim">
                   <div>
                     <span className="text-leaf">In:</span>{" "}
-                    {prettyDate(p.arriveDate)} {prettyTime(p.arriveTime)}
-                    {p.arriveGateway && ` · ${p.arriveGateway}`}
+                    {prettyDate(p.arriveDate)}
                   </div>
                   <div>
                     <span className="text-tiger">Out:</span>{" "}
-                    {prettyDate(p.returnDate)} {prettyTime(p.returnTime)}
+                    {prettyDate(p.returnDate)}
                   </div>
                 </div>
               </li>

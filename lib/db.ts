@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
+import { prettyTime } from "./event";
 import type { AuditEntry, CostItem, ItineraryItem, Participant } from "./types";
 
 /**
@@ -53,17 +54,20 @@ function ensureSchema(): Promise<void> {
         group_id        TEXT DEFAULT '',
         group_name      TEXT DEFAULT '',
         arrive_date     TEXT DEFAULT '',
+        arrive_details  TEXT DEFAULT '',
+        return_date     TEXT DEFAULT '',
+        return_details  TEXT DEFAULT '',
+        notes           TEXT DEFAULT '',
+        -- Retired: the form no longer asks for a time, gateway or mode, and
+        -- nothing reads these. They stay declared so foldLegacyTravel() below
+        -- can find and empty whatever a live database already holds.
         arrive_time     TEXT DEFAULT '',
         arrive_gateway  TEXT DEFAULT '',
         arrive_mode     TEXT DEFAULT '',
-        arrive_details  TEXT DEFAULT '',
-        return_date     TEXT DEFAULT '',
         return_time     TEXT DEFAULT '',
         return_gateway  TEXT DEFAULT '',
         return_mode     TEXT DEFAULT '',
-        return_details  TEXT DEFAULT '',
         stay_preference TEXT DEFAULT '',
-        notes           TEXT DEFAULT '',
         paid            NUMERIC DEFAULT 0,
         paid_note       TEXT DEFAULT '',
         status          TEXT DEFAULT 'Confirmed',
@@ -137,16 +141,9 @@ function rowToParticipant(r: any): Participant {
     groupId: r.group_id ?? "",
     groupName: r.group_name ?? "",
     arriveDate: r.arrive_date ?? "",
-    arriveTime: r.arrive_time ?? "",
-    arriveGateway: r.arrive_gateway ?? "",
-    arriveMode: r.arrive_mode ?? "",
     arriveDetails: r.arrive_details ?? "",
     returnDate: r.return_date ?? "",
-    returnTime: r.return_time ?? "",
-    returnGateway: r.return_gateway ?? "",
-    returnMode: r.return_mode ?? "",
     returnDetails: r.return_details ?? "",
-    stayPreference: r.stay_preference ?? "",
     notes: r.notes ?? "",
     // NUMERIC comes back from the driver as a string, so it needs coercing or
     // every sum on the money page turns into string concatenation.
@@ -187,11 +184,146 @@ async function writeFile(data: FileShape): Promise<void> {
   await fs.writeFile(FILE_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
+// ------------------------------------------------- legacy travel fold-in ----
+
+/**
+ * The form used to ask for arrival and return time, gateway and mode as
+ * separate fields. It now asks for a date and one free-text note per direction,
+ * so the old answers are folded into that note rather than orphaned in columns
+ * nothing reads.
+ *
+ * It runs once per process, before the first read, and empties the old columns
+ * as it goes — that emptying is what makes it safe to repeat. Fold without
+ * clearing and the second run would append the same time and gateway again.
+ */
+let foldReady: Promise<void> | null = null;
+
+/**
+ * The retired fields, in the JSON file's spelling. Postgres uses snake_case and
+ * names them inline in the query below, where they have to be literals anyway.
+ */
+const LEGACY_JSON = [
+  "arriveTime",
+  "arriveGateway",
+  "arriveMode",
+  "returnTime",
+  "returnGateway",
+  "returnMode",
+  "stayPreference",
+];
+
+/** "14:30" + "Nagpur" + "Flight" + "6E-234" → "2:30 PM · Nagpur · Flight · 6E-234". */
+function joinLegacy(
+  time: string,
+  gateway: string,
+  mode: string,
+  existing: string,
+): string {
+  return [time ? prettyTime(time) : "", gateway, mode, existing]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function foldOne(r: any): {
+  arriveDetails: string;
+  returnDetails: string;
+  notes: string;
+} {
+  const stay = String(r.stay_preference ?? "").trim();
+  return {
+    arriveDetails: joinLegacy(
+      r.arrive_time,
+      r.arrive_gateway,
+      r.arrive_mode,
+      r.arrive_details,
+    ),
+    returnDetails: joinLegacy(
+      r.return_time,
+      r.return_gateway,
+      r.return_mode,
+      r.return_details,
+    ),
+    // A stay preference is a note now, so it joins the general one rather than
+    // being dropped on the floor.
+    notes: [String(r.notes ?? "").trim(), stay ? `Stay: ${stay}` : ""]
+      .filter(Boolean)
+      .join(" · "),
+  };
+}
+
+function hasAny(r: any, keys: string[]): boolean {
+  return keys.some((k) => String(r[k] ?? "").trim() !== "");
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+function foldLegacyTravel(): Promise<void> {
+  foldReady ??= (async () => {
+    if (sql) {
+      await ensureSchema();
+      const rows = await sql`
+        SELECT id, arrive_time, arrive_gateway, arrive_mode, arrive_details,
+               return_time, return_gateway, return_mode, return_details,
+               stay_preference, notes
+        FROM participants
+        WHERE coalesce(arrive_time, '') <> '' OR coalesce(arrive_gateway, '') <> ''
+           OR coalesce(arrive_mode, '') <> '' OR coalesce(return_time, '') <> ''
+           OR coalesce(return_gateway, '') <> '' OR coalesce(return_mode, '') <> ''
+           OR coalesce(stay_preference, '') <> ''
+      `;
+      for (const r of rows) {
+        const f = foldOne(r);
+        await sql`
+          UPDATE participants SET
+            arrive_details = ${f.arriveDetails},
+            return_details = ${f.returnDetails},
+            notes = ${f.notes},
+            arrive_time = '', arrive_gateway = '', arrive_mode = '',
+            return_time = '', return_gateway = '', return_mode = '',
+            stay_preference = ''
+          WHERE id = ${r.id}
+        `;
+      }
+      return;
+    }
+
+    const data = await readFile();
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const list = data.participants as any[];
+    if (!list.some((p) => hasAny(p, LEGACY_JSON))) return;
+    for (const p of list) {
+      if (!hasAny(p, LEGACY_JSON)) continue;
+      const f = foldOne({
+        ...p,
+        arrive_time: p.arriveTime,
+        arrive_gateway: p.arriveGateway,
+        arrive_mode: p.arriveMode,
+        arrive_details: p.arriveDetails,
+        return_time: p.returnTime,
+        return_gateway: p.returnGateway,
+        return_mode: p.returnMode,
+        return_details: p.returnDetails,
+        stay_preference: p.stayPreference,
+        notes: p.notes,
+      });
+      Object.assign(p, f);
+      for (const k of LEGACY_JSON) delete p[k];
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    await writeFile(data);
+  })().catch((err) => {
+    foldReady = null; // let the next request retry rather than wedging forever
+    throw err;
+  });
+  return foldReady;
+}
+
 // ------------------------------------------------------------------- api ----
 
 export async function listParticipants(): Promise<Participant[]> {
+  await foldLegacyTravel();
   if (sql) {
-    await ensureSchema();
     const rows = await sql`SELECT * FROM participants ORDER BY created_at ASC`;
     return rows.map(rowToParticipant);
   }
@@ -200,8 +332,8 @@ export async function listParticipants(): Promise<Participant[]> {
 }
 
 export async function getParticipant(id: string): Promise<Participant | null> {
+  await foldLegacyTravel();
   if (sql) {
-    await ensureSchema();
     const rows = await sql`SELECT * FROM participants WHERE id = ${id}`;
     return rows.length ? rowToParticipant(rows[0]) : null;
   }
@@ -229,19 +361,16 @@ export async function saveParticipant(
     await sql`
       INSERT INTO participants (
         id, name, city, phone, food, group_id, group_name,
-        arrive_date, arrive_time, arrive_gateway, arrive_mode, arrive_details,
-        return_date, return_time, return_gateway, return_mode, return_details,
-        stay_preference, notes, paid, paid_note,
+        arrive_date, arrive_details,
+        return_date, return_details,
+        notes, paid, paid_note,
         status, created_at, updated_at, updated_by
       ) VALUES (
         ${record.id}, ${record.name}, ${record.city}, ${record.phone},
         ${record.food}, ${record.groupId}, ${record.groupName},
-        ${record.arriveDate}, ${record.arriveTime}, ${record.arriveGateway},
-        ${record.arriveMode}, ${record.arriveDetails},
-        ${record.returnDate}, ${record.returnTime}, ${record.returnGateway},
-        ${record.returnMode}, ${record.returnDetails},
-        ${record.stayPreference}, ${record.notes},
-        ${record.paid}, ${record.paidNote},
+        ${record.arriveDate}, ${record.arriveDetails},
+        ${record.returnDate}, ${record.returnDetails},
+        ${record.notes}, ${record.paid}, ${record.paidNote},
         ${record.status},
         ${record.createdAt}, ${record.updatedAt}, ${record.updatedBy}
       )
@@ -249,13 +378,11 @@ export async function saveParticipant(
         name = EXCLUDED.name, city = EXCLUDED.city, phone = EXCLUDED.phone,
         food = EXCLUDED.food,
         group_id = EXCLUDED.group_id, group_name = EXCLUDED.group_name,
-        arrive_date = EXCLUDED.arrive_date, arrive_time = EXCLUDED.arrive_time,
-        arrive_gateway = EXCLUDED.arrive_gateway, arrive_mode = EXCLUDED.arrive_mode,
+        arrive_date = EXCLUDED.arrive_date,
         arrive_details = EXCLUDED.arrive_details,
-        return_date = EXCLUDED.return_date, return_time = EXCLUDED.return_time,
-        return_gateway = EXCLUDED.return_gateway, return_mode = EXCLUDED.return_mode,
+        return_date = EXCLUDED.return_date,
         return_details = EXCLUDED.return_details,
-        stay_preference = EXCLUDED.stay_preference, notes = EXCLUDED.notes,
+        notes = EXCLUDED.notes,
         paid = EXCLUDED.paid, paid_note = EXCLUDED.paid_note,
         status = EXCLUDED.status,
         updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by
@@ -471,16 +598,9 @@ const FIELD_LABELS: Partial<Record<keyof Participant, string>> = {
   food: "food preference",
   groupName: "travel group",
   arriveDate: "arrival date",
-  arriveTime: "arrival time",
-  arriveGateway: "arrival gateway",
-  arriveMode: "arrival mode",
-  arriveDetails: "arrival details",
-  returnDate: "return date",
-  returnTime: "return time",
-  returnGateway: "return gateway",
-  returnMode: "return mode",
-  returnDetails: "return details",
-  stayPreference: "stay preference",
+  arriveDetails: "arrival notes",
+  returnDate: "departure date",
+  returnDetails: "departure notes",
   notes: "notes",
   paid: "amount received",
   paidNote: "payment note",

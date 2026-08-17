@@ -102,7 +102,9 @@ export async function saveParticipantAction(
     name,
     city: choice(fd, "city"),
     phone: str(fd, "phone"),
-    food: str(fd, "food"),
+    // Not on the form any more, so carry through whatever was answered before
+    // rather than resetting everyone to the default on their next edit.
+    food: existing?.food ?? "",
 
     // Group membership is managed on /groups, never posted by this form —
     // carry it through so editing travel details can't drop someone out.
@@ -110,18 +112,11 @@ export async function saveParticipantAction(
     groupName: existing?.groupName ?? "",
 
     arriveDate: choice(fd, "arriveDate"),
-    arriveTime: str(fd, "arriveTime"),
-    arriveGateway: str(fd, "arriveGateway"),
-    arriveMode: str(fd, "arriveMode"),
     arriveDetails: str(fd, "arriveDetails"),
 
     returnDate: choice(fd, "returnDate"),
-    returnTime: str(fd, "returnTime"),
-    returnGateway: str(fd, "returnGateway"),
-    returnMode: str(fd, "returnMode"),
     returnDetails: str(fd, "returnDetails"),
 
-    stayPreference: str(fd, "stayPreference"),
     notes: str(fd, "notes"),
 
     // What Mayuri has received is hers to set, and this form never posts it —

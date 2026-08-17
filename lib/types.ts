@@ -3,6 +3,11 @@ export type Participant = {
   name: string;
   city: string;
   phone: string;
+  /**
+   * Kept, and kept out of the form for now — the veg/non-veg question only
+   * matters once a resort asks for a headcount, and asking it up front was
+   * noise. Nothing writes it any more; existing answers are still here.
+   */
   food: string;
 
   /**
@@ -13,21 +18,19 @@ export type Participant = {
   groupId: string;
   groupName: string;
 
+  /**
+   * When they come and when they leave — the only two things the form insists
+   * on. Everything else about the journey goes in the notes beside them as
+   * free text: ten dropdowns for time, gateway and mode asked people to be
+   * precise months before they'd booked anything.
+   */
   arriveDate: string;
-  arriveTime: string;
-  arriveGateway: string;
-  arriveMode: string;
-  /** Train name/number, flight number, "driving via Warora", etc. */
+  /** "2:30pm at Nagpur, 6E-234 from Pune" — whatever they actually know. */
   arriveDetails: string;
 
   returnDate: string;
-  returnTime: string;
-  returnGateway: string;
-  returnMode: string;
   returnDetails: string;
 
-  /** Where they'd like to stay, in their own words. */
-  stayPreference: string;
   /** Anything else they want Mayuri to know. */
   notes: string;
 
@@ -108,16 +111,9 @@ export const EMPTY_PARTICIPANT: Omit<Participant, "id" | "createdAt" | "updatedA
   groupId: "",
   groupName: "",
   arriveDate: "",
-  arriveTime: "",
-  arriveGateway: "",
-  arriveMode: "",
   arriveDetails: "",
   returnDate: "",
-  returnTime: "",
-  returnGateway: "",
-  returnMode: "",
   returnDetails: "",
-  stayPreference: "",
   notes: "",
   paid: 0,
   paidNote: "",

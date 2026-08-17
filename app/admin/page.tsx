@@ -123,11 +123,8 @@ export default async function AdminPage() {
           </span>
         )}
         {t.cancelled > 0 && <span className="chip">{t.cancelled} cancelled</span>}
-        {Object.entries(t.food).map(([k, v]) => (
-          <span key={k} className="chip">
-            {k}: {v}
-          </span>
-        ))}
+        {/* Food counts are hidden while the form doesn't ask — a tally of
+            everyone's defaults would only mislead the resort. */}
         <span className="chip !border-tiger/40 !text-tiger">
           {formatMoney(money.received)} of {formatMoney(money.expected)} in
         </span>

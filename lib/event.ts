@@ -14,12 +14,6 @@ export const EVENT = {
   startsAt: "2026-11-21T09:00:00+05:30",
 } as const;
 
-/**
- * The main day everyone must be at the resort by. Anyone arriving before this
- * needs a bed for the night in between — usually at their arrival city.
- */
-export const MAIN_DAY = "2026-11-21";
-
 /** Arrivals happen on the 20th or 21st; returns on the 22nd, sometimes later. */
 export const ARRIVAL_DATES = [
   { value: "2026-11-20", label: "Fri 20 Nov (a day early)" },
@@ -44,25 +38,6 @@ export const CITIES = [
   "Nagpur",
   "Chandrapur",
 ] as const;
-
-/** The two realistic gateways to Tadoba, plus the drive-straight-in case. */
-export const GATEWAYS = [
-  "Nagpur",
-  "Chandrapur",
-  "Straight to the resort",
-  "Not decided yet",
-] as const;
-
-export const MODES = [
-  "Train",
-  "Flight",
-  "Bus",
-  "Own car",
-  "Cab / taxi",
-  "Not decided yet",
-] as const;
-
-export const FOOD_PREFERENCES = ["Veg", "Non-veg"] as const;
 
 export const STATUSES = ["Confirmed", "Tentative", "Cancelled"] as const;
 
@@ -114,36 +89,17 @@ export function prettyStamp(iso: string): string {
 }
 
 /**
- * Times are stored as 24-hour "HH:MM" because that string sorts correctly and
- * drops straight into the pickup slots. Nobody in the group should ever have to
- * read it in that form, so every screen — and the entry form — goes through
- * these two and talks in AM/PM.
+ * Programme times are stored as 24-hour "HH:MM" because that string sorts
+ * correctly. Nobody in the group should have to read it in that form, so every
+ * screen goes through this and talks in AM/PM.
  */
-export type Clock12 = { hour: number; minute: number; meridiem: "AM" | "PM" };
-
-export function to12Hour(time: string | null | undefined): Clock12 | null {
-  if (!time) return null;
-  const [h, m] = time.split(":").map(Number);
-  if (!Number.isInteger(h) || h < 0 || h > 23) return null;
-  if (!Number.isInteger(m) || m < 0 || m > 59) return null;
-  return {
-    hour: h % 12 === 0 ? 12 : h % 12,
-    minute: m,
-    meridiem: h < 12 ? "AM" : "PM",
-  };
-}
-
-/** The inverse — back to the stored "HH:MM". */
-export function to24Hour(hour: number, minute: number, meridiem: string): string {
-  const h = (hour % 12) + (meridiem === "PM" ? 12 : 0);
-  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
-
 export function prettyTime(time: string | null | undefined): string {
   if (!time) return "—";
-  const t = to12Hour(time);
-  if (!t) return time;
-  return `${t.hour}:${String(t.minute).padStart(2, "0")} ${t.meridiem}`;
+  const [h, m] = time.split(":").map(Number);
+  if (!Number.isInteger(h) || h < 0 || h > 23) return time;
+  if (!Number.isInteger(m) || m < 0 || m > 59) return time;
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
 /**

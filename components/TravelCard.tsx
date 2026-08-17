@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AnimalAvatar from "@/components/AnimalAvatar";
-import { prettyDate, prettyTime } from "@/lib/event";
+import { prettyDate } from "@/lib/event";
 import type { Participant } from "@/lib/types";
 
 /** One person's travel details, as shown on the travel list. */
@@ -25,7 +25,6 @@ export default function TravelCard({
             </div>
             <div className="text-sm text-bone-dim">
               {p.city || "City not given"}
-              {p.food && ` · ${p.food}`}
             </div>
             {showGroup && p.groupName && (
               <div className="mt-0.5 text-xs text-leaf">👥 {p.groupName}</div>
@@ -51,41 +50,22 @@ export default function TravelCard({
             Arriving
           </div>
           <div className="mt-1 text-bone">{prettyDate(p.arriveDate)}</div>
-          <div className="text-bone-dim">
-            {prettyTime(p.arriveTime)}
-            {p.arriveGateway && ` · ${p.arriveGateway}`}
-          </div>
-          {p.arriveMode && (
-            <div className="mt-1 text-xs text-bone-dim">
-              {p.arriveMode}
-              {p.arriveDetails && ` · ${p.arriveDetails}`}
-            </div>
+          {p.arriveDetails && (
+            <div className="mt-1 text-xs text-bone-dim">{p.arriveDetails}</div>
           )}
         </div>
 
         <div className="rounded-lg border border-jungle-800 bg-jungle-950/50 p-3">
           <div className="text-[10px] font-semibold tracking-wider text-tiger uppercase">
-            Returning
+            Leaving
           </div>
           <div className="mt-1 text-bone">{prettyDate(p.returnDate)}</div>
-          <div className="text-bone-dim">
-            {prettyTime(p.returnTime)}
-            {p.returnGateway && ` · ${p.returnGateway}`}
-          </div>
-          {p.returnMode && (
-            <div className="mt-1 text-xs text-bone-dim">
-              {p.returnMode}
-              {p.returnDetails && ` · ${p.returnDetails}`}
-            </div>
+          {p.returnDetails && (
+            <div className="mt-1 text-xs text-bone-dim">{p.returnDetails}</div>
           )}
         </div>
       </div>
 
-      {p.stayPreference && (
-        <p className="mt-3 text-xs text-bone-dim">
-          <span className="text-amber-glow">Stay:</span> {p.stayPreference}
-        </p>
-      )}
       {p.notes && (
         <p className="mt-2 line-clamp-2 text-xs text-bone-dim italic">
           “{p.notes}”

@@ -17,7 +17,7 @@ the 22nd.
 | `/itinerary` | The group | The day-by-day programme, with an estimated cost per entry. Mayuri edits it here, in place. |
 | `/money` | The group | Every bill, everyone's share, what's been paid, what's left. Mayuri edits the totals, who splits them, and the receipts here, in place. |
 | `/travel` | The group | Every travel entry as a card. Anyone can open anyone's and fix it. |
-| `/travel/new` | The group | The form: arrival and return date, time, gateway, mode, train/flight number, food, stay preference, notes. |
+| `/travel/new` | The group | The form: name, arrival date, departure date, and a free-text note beside each. |
 | `/groups` | The group | Put people who travel together into one party. |
 | `/admin` | Mayuri | Where things stand, the change log, CSV export. |
 
@@ -31,6 +31,26 @@ ordering to keep in sync.
 Safaris are ordinary entries. They used to have a dedicated slot-based booking
 panel and a reporting-times board; a drive is a time and a place, which is what
 an entry already is, so the special case earned nothing.
+
+### The travel entry
+
+Name, when you arrive, when you leave, and a note beside each — plus one general
+note at the end. That's it.
+
+It used to ask for time, gateway and mode as separate dropdowns in each
+direction: ten fields, most demanding precision months before anyone had booked
+a ticket, with "Not decided yet" the honest answer to half of them. One free-text
+note per direction holds the same information without making a half-known plan
+feel like a form error. Veg/non-veg is hidden too — it only matters once a resort
+wants a headcount, and existing answers are still in the database.
+
+Nothing was thrown away. `foldLegacyTravel()` in [`lib/db.ts`](lib/db.ts) runs
+once per process before the first read and folds each old answer into the note
+beside its date — `14:30` + `Nagpur` + `Flight` + `6E-234` becomes
+`2:30 PM · Nagpur · Flight · 6E-234`, and a stay preference joins the general
+note. It empties the old columns as it goes, and **that emptying is what makes it
+safe to repeat**: fold without clearing and a second run would append the same
+time and gateway again.
 
 ### The money
 
