@@ -14,8 +14,13 @@ export type Role = "guest" | "admin";
 const COOKIE = "gtg_session";
 const NAME_COOKIE = "gtg_who";
 
+/**
+ * Fallbacks only — these are what you get with no env vars set, so they're for
+ * `npm run dev`. Anything deployed reads the real ones from the environment;
+ * a default sitting in the repo is not a password.
+ */
 const SITE_PASSWORD = process.env.SITE_PASSWORD || "tadoba2026";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "mayuri2026";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "mayuri";
 const SECRET = process.env.SESSION_SECRET || "change-me-in-vercel-env-vars";
 
 function sign(role: Role): string {

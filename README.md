@@ -95,8 +95,10 @@ node scripts/seed-demo.mjs   # six made-up friends, a programme and four costs
 
 Delete the `.data` folder to clear them again.
 
-**Default passwords** (until you change them): group `tadoba2026`, admin
-`mayuri2026`.
+**Default passwords**: group `tadoba2026`, organiser `mayuri`. These are only
+the fallbacks for when no env vars are set, i.e. local development — a deployed
+site reads the real ones from `SITE_PASSWORD` and `ADMIN_PASSWORD`, so changing
+these two does nothing to what's live.
 
 ---
 
