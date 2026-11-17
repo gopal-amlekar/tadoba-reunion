@@ -64,7 +64,7 @@ export default function Image() {
                 color: "#5ee2a0",
               }}
             >
-              {`School reunion · ${EVENT.year}`}
+              {`Friends reunion · ${EVENT.year}`}
             </div>
             <div style={{ fontSize: 76, fontWeight: 800, lineHeight: 1.05 }}>
               Tadoba calls us back.

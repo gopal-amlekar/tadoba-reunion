@@ -1,60 +1,120 @@
-import Link from "next/link";
-import AnimalAvatar from "@/components/AnimalAvatar";
 import Countdown from "@/components/Countdown";
 import TigerHero from "@/components/TigerHero";
-import { isUnlocked } from "@/lib/auth";
-import { listParticipants } from "@/lib/db";
-import { EVENT, prettyDate } from "@/lib/event";
+import { EVENT } from "@/lib/event";
 
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const unlocked = await isUnlocked();
-  const everyone = (await listParticipants()).filter(
-    (p) => p.status !== "Cancelled",
+/** One line of Marathi with its English underneath, side by side in spirit. */
+function Bi({
+  mr,
+  en,
+  mrClass = "text-bone",
+  enClass = "text-bone-dim",
+}: {
+  mr: React.ReactNode;
+  en: React.ReactNode;
+  mrClass?: string;
+  enClass?: string;
+}) {
+  return (
+    <>
+      <span className={`block ${mrClass}`}>{mr}</span>
+      <span className={`mt-1 block ${enClass}`}>{en}</span>
+    </>
   );
+}
 
-  const cities = [...new Set(everyone.map((p) => p.city).filter(Boolean))];
+const DAYS = [
+  {
+    date: "२० नोव्हेंबर · 20 Nov",
+    mr: "नागपुरात धडक",
+    en: "Landing in Nagpur",
+    mrText:
+      "सगळे नागपुरात येऊन धडकणार — कोणी सकाळी, कोणी दुपारी, कोणी संध्याकाळी. लई गोंधळ होणार, पण मजा पण तेवढीच!",
+    enText:
+      "Everyone arrives in Nagpur at their own time — morning, afternoon or evening. Some chaos, plenty of fun.",
+  },
+  {
+    date: "२१ नोव्हेंबर · 21 Nov",
+    mr: "ताडोबाचा दिवस",
+    en: "Tadoba day",
+    mrText: "जंगल, गप्पा, गाणी आणि धमाल. वाघोबा दिसला तर नशीब आपलं!",
+    enText: "Jungle, stories, songs and masti. Fingers crossed for the tiger!",
+  },
+  {
+    date: "२२ नोव्हेंबर · 22 Nov",
+    mr: "परतीची वाट",
+    en: "Heading home",
+    mrText: "मनात आठवणी भरून आणि पुढच्या भेटीचं ठरवून परतायचं.",
+    enText: "Back home with full hearts — and the next reunion already planned.",
+  },
+];
 
+const FUN = [
+  {
+    icon: "🎣",
+    mr: "फिशपॉन्ड",
+    en: "Fishpond",
+    mrText:
+      "प्रत्येकाच्या नावानं एक गाणं — बहुतेक गमतीशीर, लई हसवणारं! तुमच्या नावाचं कोणतं निघतं बगा.",
+    enText:
+      "Everyone gets a song (or two) dedicated to them, mostly funny ones. See which song comes out with your name!",
+    byMr: "आयोजक: विकास, नीलेश आणि नीलिमा",
+    byEn: "Run by Vikas, Nilesh and Nilima",
+  },
+  {
+    icon: "🎤",
+    mr: "गाण्यांच्या मैफली",
+    en: "Singing sessions",
+    mrText: "जुनी गाणी, नवे सूर आणि रात्री अंताक्षरी — गळा तयार ठेवा!",
+    enText: "Old songs, new tunes and a late-night antakshari — warm up your voices!",
+    byMr: "सादरकर्ते: नीलेश आणि सुनील",
+    byEn: "Led by Nilesh and Sunil",
+  },
+  {
+    icon: "😄",
+    mr: "लई थट्टामस्करी",
+    en: "Lots of leg-pulling",
+    mrText: "काय बे भाऊ, एकमेकांची टांग खेचाले तयार राहा!",
+    enText: "Be ready for plenty of friendly teasing, from everyone to everyone.",
+    byMr: "सगळ्यांकडून सगळ्यांसाठी",
+    byEn: "From everyone, for everyone",
+  },
+];
+
+export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4">
       {/* ---------------------------------------------------------- hero -- */}
       <section className="grid items-center gap-8 pt-14 pb-10 sm:pt-20 lg:grid-cols-[1.15fr_1fr]">
         <div>
           <p className="mb-3 font-display text-sm font-semibold tracking-[0.2em] text-leaf uppercase">
-            School reunion · {EVENT.year}
+            मित्रांचं गेट-टुगेदर · Friends reunion · {EVENT.year}
           </p>
-          <h1 className="font-display text-5xl leading-[1.05] font-extrabold text-bone sm:text-7xl">
-            Tadoba
-            <span className="block text-tiger">calls us back.</span>
+          <h1 className="font-display text-5xl leading-[1.15] font-extrabold text-bone sm:text-7xl">
+            ताडोबा बोलवतंय,
+            <span className="block text-tiger">चला रे!</span>
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-bone-dim">
-            {EVENT.tagline} Two days at {EVENT.venue} —{" "}
-            <strong className="text-bone">{EVENT.mainDays}</strong>. Same people,
-            same jokes, better wildlife.
+          <p className="mt-2 font-display text-2xl font-bold text-leaf sm:text-3xl">
+            Tadoba is calling us back.
           </p>
-
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <p className="mt-5 max-w-xl text-lg text-bone-dim">
+            <Bi
+              mr={
+                <>
+                  जुनी दोस्ती, जुन्या गप्पा, आणि यंदा सोबतीला वाघोबा.{" "}
+                  <strong>२० ते २२ नोव्हेंबर {EVENT.year}</strong>.
+                </>
+              }
+              en={
+                <>
+                  Old friends, old stories — and this time, tigers.{" "}
+                  <strong className="text-bone">{EVENT.mainDays}</strong>.
+                </>
+              }
+              mrClass="text-bone-dim"
+            />
+          </p>
+          <div className="mt-8">
             <Countdown target={EVENT.startsAt} />
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href={unlocked ? "/travel/new" : "/unlock"}
-              className="btn-primary"
-            >
-              Add your travel details →
-            </Link>
-            {unlocked && (
-              <>
-                <Link href="/itinerary" className="btn-ghost">
-                  The programme
-                </Link>
-                <Link href="/money" className="btn-ghost">
-                  Money
-                </Link>
-              </>
-            )}
           </div>
         </div>
 
@@ -63,133 +123,95 @@ export default async function HomePage() {
 
       <div className="stripes h-2 rounded-full opacity-70" />
 
-      {/* --------------------------------------------------------- stats -- */}
-      <section className="grid gap-4 py-10 sm:grid-cols-3">
-        {[
-          { big: String(everyone.length), small: "friends signed up" },
-          {
-            big: String(
-              everyone.filter((p) => p.status === "Confirmed").length,
-            ),
-            small: "confirmed so far",
-          },
-          { big: String(cities.length || "—"), small: "cities travelling in" },
-        ].map((s) => (
-          <div key={s.small} className="card p-5">
-            <div className="font-display text-4xl font-bold text-tiger">
-              {s.big}
-            </div>
-            <div className="mt-1 text-sm text-bone-dim">{s.small}</div>
-          </div>
-        ))}
-      </section>
-
-      {/* ------------------------------------------------------ the plan -- */}
-      <section className="grid gap-4 pb-10 md:grid-cols-3">
-        <div className="card p-6">
-          <h2 className="font-display text-xl font-bold text-leaf">
-            🌿 Where we&apos;re going
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-bone-dim">
-            {EVENT.venue} in Chandrapur district — India&apos;s tiger country.
-            Early morning safaris, long lazy afternoons, and a bonfire that will
-            almost certainly turn into an antakshari.
-          </p>
-        </div>
-        <div className="card p-6">
-          <h2 className="font-display text-xl font-bold text-leaf">
-            🚗 How to reach
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-bone-dim">
-            Two ways in. <strong className="text-bone">Nagpur</strong> — the
-            airport and the big railway junction, roughly 3½ hours by road.{" "}
-            <strong className="text-bone">Chandrapur</strong> — closer, about 1½
-            hours, good if your train stops there. Tell us which one and we&apos;ll
-            group the pickups.
-          </p>
-        </div>
-        <div className="card p-6">
-          <h2 className="font-display text-xl font-bold text-leaf">
-            📋 What you need to do
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-bone-dim">
-            Put in your travel dates, read{" "}
-            <strong className="text-bone">the programme</strong>, and pay your
-            share. What the trip costs and where you stand is on the{" "}
-            <strong className="text-bone">money</strong> page — no more asking
-            on the group.
-          </p>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------- who's coming --- */}
-      <section className="pb-16">
+      {/* ----------------------------------------------------- the days -- */}
+      <section className="py-12">
         <h2 className="font-display text-3xl font-bold text-bone">
-          Who&apos;s coming
+          तीन दिवस <span className="text-leaf">· Three days</span>
         </h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {DAYS.map((d) => (
+            <div key={d.date} className="card p-6">
+              <p className="text-xs font-semibold tracking-widest text-tiger uppercase">
+                {d.date}
+              </p>
+              <h3 className="mt-2 font-display text-xl font-bold text-leaf">
+                {d.mr} <span className="text-bone-dim">· {d.en}</span>
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-bone">
+                {d.mrText}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-bone-dim">
+                {d.enText}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        {!unlocked ? (
-          <div className="card mt-4 p-6">
-            <p className="text-bone-dim">
-              {everyone.length > 0 ? (
-                <>
-                  <strong className="text-bone">{everyone.length} friends</strong>{" "}
-                  are in so far
-                  {cities.length > 0 && <> from {cities.join(", ")}</>}.{" "}
-                </>
-              ) : (
-                <>Nobody has filled in their details yet — be the first. </>
-              )}
-              Enter the group password to see the full list and add yourself.
-            </p>
-            <Link href="/unlock" className="btn-primary mt-4">
-              Enter the group password
-            </Link>
-          </div>
-        ) : everyone.length === 0 ? (
-          <div className="card mt-4 p-6 text-bone-dim">
-            Nothing here yet.{" "}
-            <Link href="/travel/new" className="text-tiger underline">
-              Add the first entry
-            </Link>
-            .
-          </div>
-        ) : (
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {everyone.map((p) => (
-              <li key={p.id} className="card p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <AnimalAvatar name={p.name} size={46} />
-                    <div>
-                      <div className="font-display text-lg font-bold text-bone">
-                        {p.name}
-                      </div>
-                      <div className="text-sm text-bone-dim">
-                        {p.city || "City not given"}
-                      </div>
-                    </div>
-                  </div>
-                  {p.status === "Tentative" && (
-                    <span className="chip !border-amber-glow/40 !text-amber-glow">
-                      Maybe
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 space-y-1 text-xs text-bone-dim">
-                  <div>
-                    <span className="text-leaf">In:</span>{" "}
-                    {prettyDate(p.arriveDate)}
-                  </div>
-                  <div>
-                    <span className="text-tiger">Out:</span>{" "}
-                    {prettyDate(p.returnDate)}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ------------------------------------------------- what's in store -- */}
+      <section className="pb-12">
+        <h2 className="font-display text-3xl font-bold text-bone">
+          काय काय धमाल आहे <span className="text-leaf">· What&apos;s in store</span>
+        </h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {FUN.map((f) => (
+            <div key={f.en} className="card p-6">
+              <div className="text-4xl">{f.icon}</div>
+              <h3 className="mt-3 font-display text-xl font-bold text-leaf">
+                {f.mr} <span className="text-bone-dim">· {f.en}</span>
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-bone">
+                {f.mrText}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-bone-dim">
+                {f.enText}
+              </p>
+              <p className="mt-4 text-xs font-semibold text-amber-glow">
+                {f.byMr}
+                <span className="block font-normal text-bone-dim">{f.byEn}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ------------------------------------------ organiser + सरकार -- */}
+      <section className="grid gap-4 pb-8 md:grid-cols-2">
+        <div className="card border-tiger/40 p-8 text-center">
+          <div className="text-4xl">🌟</div>
+          <p className="mt-3 text-xs font-semibold tracking-widest text-tiger uppercase">
+            आयोजक · Organiser
+          </p>
+          <h2 className="mt-2 font-display text-4xl font-extrabold text-bone">
+            मयुरी <span className="text-tiger">· Mayuri</span>
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-bone">
+            हे सगळं घडवून आणल्याबद्दल मनापासून धन्यवाद, मयुरी!
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-bone-dim">
+            Heartfelt thanks, Mayuri, for making all of this happen.
+          </p>
+        </div>
+
+        <div className="card border-amber-glow/40 p-8 text-center">
+          <div className="text-4xl">👑</div>
+          <p className="mt-3 text-xs font-semibold tracking-widest text-amber-glow uppercase">
+            आपल्या सगळ्यांच्या लाडक्या · Our most respected
+          </p>
+          <h2 className="mt-2 font-display text-5xl font-extrabold text-amber-glow">
+            सरकार
+          </h2>
+          <p className="mt-1 font-display text-lg text-bone-dim">
+            नीलिमा · Nilima
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-bone">
+            आमच्या ग्रुपचा आदर आणि आधार — तुमच्याशिवाय ही मैफल अधुरी आहे.
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-bone-dim">
+            The respect and heart of our group. This gathering is incomplete
+            without you.
+          </p>
+        </div>
       </section>
     </div>
   );

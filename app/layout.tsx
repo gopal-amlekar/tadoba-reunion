@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { Baloo_2, Inter } from "next/font/google";
-import Link from "next/link";
-import { lockAction } from "@/app/actions";
 import JungleBackdrop from "@/components/JungleBackdrop";
-import NavLink from "@/components/NavLink";
-import TigerMark from "@/components/TigerMark";
 import { EVENT } from "@/lib/event";
-import { getRole } from "@/lib/auth";
 import "./globals.css";
 
 const baloo = Baloo_2({
@@ -26,77 +21,26 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://tadoba-reunion.vercel.app",
   ),
-  title: `${EVENT.name} ${EVENT.year}`,
-  description: `${EVENT.tagline} ${EVENT.mainDays} at ${EVENT.venue}.`,
+  title: `ताडोबा रीयुनियन ${EVENT.year} · ${EVENT.name} ${EVENT.year}`,
+  description: `ताडोबा बोलवतंय, चला रे! Tadoba is calling us back — ${EVENT.mainDays}.`,
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const role = await getRole();
-
   return (
-    <html lang="en" className={`${baloo.variable} ${inter.variable}`}>
+    <html lang="mr" className={`${baloo.variable} ${inter.variable}`}>
       <body className="min-h-screen">
         <JungleBackdrop />
-
-        <header className="no-print sticky top-0 z-50 border-b border-jungle-800/80 bg-jungle-950/80 backdrop-blur-md">
-          {/* Five nav items plus the wordmark don't fit across a phone. Left to
-              squeeze, the labels break onto two lines each and the header grows
-              to three rows; so the wordmark drops below sm and the links scroll
-              sideways instead, keeping the sticky header one line tall. */}
-          <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-4">
-            <Link
-              href="/"
-              className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-bone transition hover:text-tiger"
-            >
-              <TigerMark size={26} />
-              <span className="hidden sm:inline">{EVENT.name}</span>
-            </Link>
-            <span className="ml-auto flex min-w-0 items-center gap-1 text-sm sm:gap-3">
-              <span className="no-scrollbar flex min-w-0 items-center gap-1 overflow-x-auto sm:gap-3">
-                {role && (
-                  <>
-                    <NavLink href="/itinerary">Programme</NavLink>
-                    <NavLink href="/money">Money</NavLink>
-                    <NavLink href="/travel">Travel list</NavLink>
-                    <NavLink href="/groups">Groups</NavLink>
-                  </>
-                )}
-                {role === "admin" && <NavLink href="/admin">Organise</NavLink>}
-                {!role && (
-                  <Link href="/unlock" className="btn-primary !px-4 !py-1.5 text-sm">
-                    Enter details
-                  </Link>
-                )}
-              </span>
-              {role && (
-                // Shared devices and borrowed phones: everyone needs a way out,
-                // not just the organiser — so this sits outside the scrolling
-                // strip and stays put however many pages get added to it.
-                <form action={lockAction} className="shrink-0">
-                  <button
-                    type="submit"
-                    className="rounded-lg px-2 py-1.5 whitespace-nowrap text-bone-dim transition hover:bg-jungle-800 hover:text-tiger sm:px-3"
-                  >
-                    Log out
-                  </button>
-                </form>
-              )}
-            </span>
-          </nav>
-        </header>
-
         <main>{children}</main>
-
-        <footer className="no-print mt-20 border-t border-jungle-800 py-8 text-center text-sm text-bone-dim">
+        <footer className="mt-20 border-t border-jungle-800 py-8 text-center text-sm text-bone-dim">
           <p>
-            {EVENT.name} {EVENT.year} · {EVENT.mainDays}
+            ताडोबा रीयुनियन {EVENT.year} · Tadoba Reunion {EVENT.year}
           </p>
           <p className="mt-1">
-            Organised by {EVENT.organiser}. Made with chai and nostalgia.
+            चहा आणि आठवणींसोबत बनवलेलं · Made with chai and nostalgia.
           </p>
         </footer>
       </body>
